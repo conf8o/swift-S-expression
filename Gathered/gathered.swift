@@ -137,7 +137,7 @@ func lookupVar(symbol: SSymbol, env: Env) -> Obj {
 }
 
 
-//===--- Obj_Literal.swift ---===//
+//===--- Obj+Literal.swift ---===//
 
 /// Objのリテラル表現(Int)
 extension Obj: ExpressibleByIntegerLiteral {
