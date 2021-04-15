@@ -62,16 +62,25 @@ public extension Obj {
 
             switch _x {
             case .lambda:
-                let _xs = xs.eval(env: &env)
+                let _xs = xs.evalList(env: &env)
                 return apply(f: _x, args: _xs)
             case .special:
                 return applySpecialForm(m: _x, args: xs, env: &env)
             default:
-                let _xs = xs.eval(env: &env)
+                let _xs = xs.evalList(env: &env)
                 return Obj.cons(_x, _xs)
             }
         default:
             return self
+        }
+    }
+
+    func evalList(env: inout Env) -> Obj {
+        switch self {
+        case .cons(let x, let xs):
+            return Obj.cons(x.eval(env: &env), xs.evalList(env: &env))
+        default:
+            return self.eval(env: &env)
         }
     }
 }
