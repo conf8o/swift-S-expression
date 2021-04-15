@@ -1,45 +1,9 @@
-struct Main {
-    var env: Env
-    mutating func debug(_ objs: Obj...) {
-        for (i, obj) in objs.enumerated() {
-            print("===--- S:\(i) ---===")
-            let res = obj.eval(env: &env)
-            print("Env:", env)
-            print("Result:", res)
-        }
-    }
-    mutating func run(_ objs: Obj...) -> Obj {
-        var last = Obj.null
-        for obj in objs {
-            last = obj.eval(env: &env)
-        }
-        return last
-    }
-}
-
-func solve() {
-    var main = Main(env: globalEnv)
-
-    let N = Obj.int(Int(readLine()!)!)
-    let A = S(readLine()!.split(separator: " ").map { Obj.int(Int($0)!) })
-    print(N, A)
-
-    let ans = main.debug(
-        ["'define", "'sum",
-            ["'lambda", ["'col"],
-                ["'if", ["'null?", "'col"],
-                    0,
-                    ["'+", ["'car", "'col"], ["'sum", ["'cdr", "'col"]]]]]],
-        ["'sum", A]
-    )
-}
-
-//===--- Swift-S-Expression ---===///
+//===--- Obj.swift ---===//
 
 /// オブジェクト
 /// S式自体もconsなのでこれで表現する。
-public enum Obj {
-    public typealias Symbol = String
+enum Obj {
+    typealias Symbol = String
     case int(Int)
     case double(Double)
     case string(String)
@@ -52,15 +16,15 @@ public enum Obj {
 }
 
 // 申し訳程度の型ヒント
-public typealias SInt = Obj      // .null | .int
-public typealias SDouble = Obj   // .null | .double
-public typealias SString = Obj   // .null | .string  
-public typealias SSymbol = Obj   // .null | .symbol
-public typealias SBool = Obj     // .null | .bool 
-public typealias SLambda = Obj   // .null | .lambda
-public typealias SSpecial = Obj  // .null | .special
-public typealias SNull = Obj     // .null
-public typealias SCons = Obj     // .null | .cons
+typealias SInt = Obj      // .null | .int
+typealias SDouble = Obj   // .null | .double
+typealias SString = Obj   // .null | .string  
+typealias SSymbol = Obj   // .null | .symbol
+typealias SBool = Obj     // .null | .bool 
+typealias SLambda = Obj   // .null | .lambda
+typealias SSpecial = Obj  // .null | .special
+typealias SNull = Obj     // .null
+typealias SCons = Obj     // .null | .cons
 
 extension SCons {
     func car() -> Obj {
@@ -79,7 +43,7 @@ extension SCons {
 }
 
 /// 配列からS式へ変換
-public func S(_ array: [Obj]) -> Obj {
+func S(_ array: [Obj]) -> Obj {
     var array = array
     guard let obj = array.popLast() else { return .null }
     var list = Obj.cons(obj, .null)
@@ -89,7 +53,7 @@ public func S(_ array: [Obj]) -> Obj {
     return list
 }
 
-public extension Obj {
+extension Obj {
     /// S式の評価
     func eval(env: inout Env) -> Obj {
         switch self {
@@ -100,37 +64,48 @@ public extension Obj {
 
             switch _x {
             case .lambda:
-                let _xs = xs.eval(env: &env)
+                let _xs = xs.evalList(env: &env)
                 return apply(f: _x, args: _xs)
             case .special:
                 return applySpecialForm(m: _x, args: xs, env: &env)
             default:
-                let _xs = xs.eval(env: &env)
+                let _xs = xs.evalList(env: &env)
                 return Obj.cons(_x, _xs)
             }
         default:
             return self
         }
     }
+
+    func evalList(env: inout Env) -> Obj {
+        switch self {
+        case .cons(let x, let xs):
+            return Obj.cons(x.eval(env: &env), xs.evalList(env: &env))
+        default:
+            return self.eval(env: &env)
+        }
+    }
 }
 
 /// 関数の適用
-public func apply(f: SLambda, args: SCons) -> Obj {
+func apply(f: SLambda, args: SCons) -> Obj {
     guard case .lambda(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
     return _f(args)
 }
 
 /// 特殊形式の適用
-public func applySpecialForm(m: SSpecial, args: SCons, env: inout Env) -> Obj {
+func applySpecialForm(m: SSpecial, args: SCons, env: inout Env) -> Obj {
     guard case .special(let _m) = m else { return _raiseErrorDev(m, args) /* TODO エラーハンドリング */ }
     return _m(args, &env)
 }
 
+//===--- Env.swift ---===//
+
 /// 環境([[変数: オブジェクト]])
-public typealias Env = [[String: Obj]]
+typealias Env = [[String: Obj]]
 
 /// 環境に変数と値を追加する。
-public func extendEnv(env: inout Env, symbols: SCons, vals: SCons)  {
+func extendEnv(env: inout Env, symbols: SCons, vals: SCons)  {
     var newEnv = [String: Obj]()
     var _symbols = symbols
     var _vals = vals
@@ -148,7 +123,7 @@ public func extendEnv(env: inout Env, symbols: SCons, vals: SCons)  {
 }
 
 /// 環境から値を取得する。配列の後ろの方が後の環境なので後ろから見る。
-public func lookupVar(symbol: SSymbol, env: Env) -> Obj {
+func lookupVar(symbol: SSymbol, env: Env) -> Obj {
     guard case .symbol(let s) = symbol else {
         return _raiseErrorDev(symbol) // TODO エラーハンドリング
     }
@@ -161,6 +136,36 @@ public func lookupVar(symbol: SSymbol, env: Env) -> Obj {
     return localEnv[s]!
 }
 
+
+//===--- Obj_Literal.swift ---===//
+
+/// Objのリテラル表現(Int)
+extension Obj: ExpressibleByIntegerLiteral {
+    init(integerLiteral: Int) {
+        self = .int(integerLiteral)
+    }
+}
+
+/// Objのリテラル表現(String, Symbol)
+extension Obj: ExpressibleByStringLiteral {
+    init(stringLiteral: String) {
+        if let quote = stringLiteral.first, quote == "'" {
+            self = .symbol(stringLiteral)
+        } else {
+            self = .string(stringLiteral)
+        }
+    }
+}
+
+/// Objのリテラル表現(Array)
+extension Obj: ExpressibleByArrayLiteral {
+    init(arrayLiteral: Obj...) {
+        self = S(arrayLiteral)
+    }
+}
+
+
+//===--- bulitin.swift ---===//
 
 // 戻り値の型が生っぽい関数などには先頭にアンダースコアをつける。
 
@@ -357,7 +362,14 @@ let builtinFunction: [String: SLambda] = [
     "'car": .lambda { obj in obj.car().car() },
     "'cdr": .lambda { obj in obj.car().cdr() },
     "'cons": .lambda { obj in Obj.cons(obj.car(), obj.cdr().car()) },
-    "'null?": .lambda { obj in .bool(!_logicalTest(obj: obj)) }
+    "'null?": .lambda { obj in 
+        if case .null = obj.car() {
+            return .bool(true)
+        } else {
+            return .bool(false)
+        }
+    },
+    "'list": .lambda { obj in obj }
 ]
 
 /// グローバル環境
@@ -366,30 +378,3 @@ var globalEnv: Env = [
     .merging(builtinSpecialForm) { (_, new) in new }
     .merging(builtinFunction) { (_, new) in new }
 ]
-
-/// Objのリテラル表現(Int)
-extension Obj: ExpressibleByIntegerLiteral {
-    public init(integerLiteral: Int) {
-        self = .int(integerLiteral)
-    }
-}
-
-/// Objのリテラル表現(String, Symbol)
-extension Obj: ExpressibleByStringLiteral {
-    public init(stringLiteral: String) {
-        if let quote = stringLiteral.first, quote == "'" {
-            self = .symbol(stringLiteral)
-        } else {
-            self = .string(stringLiteral)
-        }
-    }
-}
-
-/// Objのリテラル表現(Array)
-extension Obj: ExpressibleByArrayLiteral {
-    public init(arrayLiteral: Obj...) {
-        self = S(arrayLiteral)
-    }
-}
-
-solve()
