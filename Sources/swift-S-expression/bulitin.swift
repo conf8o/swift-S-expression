@@ -190,9 +190,17 @@ let builtinSpecialForm: [String: SSpecial] = [
 ]
 
 let builtinFunction: [String: SLambda] = [
-    "'car": .lambda { obj in obj.car() },
-    "'cdr": .lambda { obj in obj.cdr() },
-    "'cons": .lambda { obj in obj }
+    "'car": .lambda { obj in obj.car().car() },
+    "'cdr": .lambda { obj in obj.car().cdr() },
+    "'cons": .lambda { obj in Obj.cons(obj.car(), obj.cdr().car()) },
+    "'null?": .lambda { obj in 
+        if case .null = obj.car() {
+            return .bool(true)
+        } else {
+            return .bool(false)
+        }
+    },
+    "'list": .lambda { obj in obj }
 ]
 
 /// グローバル環境

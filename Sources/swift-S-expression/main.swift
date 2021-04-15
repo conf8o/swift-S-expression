@@ -16,9 +16,9 @@ struct Main {
         return last
     }
 }
-var main = Main(env: globalEnv)
+var debug = Main(env: globalEnv)
 
-main.debug(
+debug.debug(
     ["'+", 1, 2],
 
     [["'lambda", ["'x", "'y"], ["'+", "'x", "'y"]], 1, 2],
@@ -49,5 +49,17 @@ main.debug(
                         1,
                         ["'+", ["'fib", ["'-", "'n", 1]],
                                ["'fib", ["'-", "'n", 2]]]]]]],
-    ["'fib", 9]    
+    ["'fib", 9],
+
+    [["'lambda", ["'f", "'x", "'y"], ["'f", ["'+", "'x", "'y"], ["'*", "'x", "'y"]]],
+     "'*", 10, 5],
+
+     ["'define", "'sum",
+        ["'lambda", ["'col"],
+            ["'if", ["'null?", "'col"],
+                0,
+                ["'+", ["'car", "'col"], ["'sum", ["'cdr", "'col"]]]]]],
+    ["'sum", ["'list", 1, 2, 3, 4, 5]],
+
+    ["'define", "'map",]
 )
