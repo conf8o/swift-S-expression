@@ -2,6 +2,19 @@
 public typealias Env = [[String: Obj]]
 
 /// 環境に変数と値を追加する。
+public func extendEnv(env: inout Env, symbols: [SSymbol], vals: [Obj])  {
+    var newEnv = [String: Obj]()
+    for (symbol, val) in zip(symbols, vals) {
+        guard case .symbol(let s) = symbol else {
+            let _ = newEnv["🦀"]! /* TODO エラーハンドリング */
+            return
+        }
+        newEnv[s] = val
+    }
+    env.append(newEnv)
+}
+
+/// 環境に変数と値を追加する。
 public func extendEnv(env: inout Env, symbols: SCons, vals: SCons)  {
     var newEnv = [String: Obj]()
     var _symbols = symbols

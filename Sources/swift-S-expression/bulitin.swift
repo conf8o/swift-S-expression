@@ -9,16 +9,13 @@ func _raiseErrorDev<T>(_ obj: Obj...) -> T {
 
 /// リストの最初の二つをタプルで取り出す。
 func _take2(list: SCons, default obj: (Obj, Obj))-> (Obj, Obj) {
-    guard case .cons(let x, let rest) = list else { return obj }
-    guard case .cons(let y, _) = rest else { return obj }
+    guard case .cons(let x, .cons(let y, _)) = list else { return obj }
     return (x, y)
 }
 
 /// リストの最初の三つをタプルで取り出す。
 func _take3(list: SCons, default obj: (Obj, Obj, Obj))-> (Obj, Obj, Obj) {
-    guard case .cons(let x, let xrest) = list else { return obj }
-    guard case .cons(let y, let yrest) = xrest else { return obj }
-    guard case .cons(let z, _) = yrest else { return obj }
+    guard case .cons(let x, .cons(let y, .cons(let z, _))) = list else { return obj }
     return (x, y, z)
 }
 
@@ -111,34 +108,48 @@ let builtinOperator: [String: SLambda] = [
     }
 ]
 
-// 予約語
-/// 自身を示すシンボル TODO 正当かどうか。
-let _SELF = "'self"
-func _selfSymbol(env: Env) -> SSymbol? { 
-    env.last { $0[_SELF] != nil }.flatMap { $0[_SELF] } 
-}
+// TODO 再帰
 
 /// lambda式
 func lambda(expr: SCons, env: inout Env) -> SLambda {
-    let (params, body) = _take2(list: expr, default: (.null, .null))
     var env = env
-    func closure(args: SCons) -> Obj {
-        extendEnv(env: &env, symbols: params, vals: args)
-        // TODO selfは正当かどうか確かめる。
-        if let selfSymbol = _selfSymbol(env: env) {
-            extendEnv(env: &env, symbols: [selfSymbol], vals: [(["'lambda", params, body] as Obj).eval(env: &env)])
+    switch expr {
+    case .cons(let params, .cons(let body, .null)):
+        func closure(args: SCons) -> Obj {
+            extendEnv(env: &env, symbols: params, vals: args)
+            return body.eval(env: &env)
         }
-        return body.eval(env: &env)
+        return .lambda(closure)
+    case .cons(let name, .cons(let params, .cons(let body, .null))):
+        func closure(args: SCons) -> Obj {
+            extendEnv(env: &env, symbols: [name], vals: [(["'lambda", params, body] as Obj).eval(env: &env)])
+            extendEnv(env: &env, symbols: params, vals: args)
+            return body.eval(env: &env)
+        }
+
+        return .lambda(closure)
+    default:
+        return _raiseErrorDev(expr)
     }
-    return .lambda(closure)
 }
 
 /// 定義文
 func define(expr: SCons, env: inout Env) -> SNull {
-    let (symbol, val) = _take2(list: expr, default: (.null, .null))
-    // TODO selfは正当かどうか確かめる。
-    extendEnv(env: &env, symbols: [.symbol(_SELF)], vals: [symbol])
-    extendEnv(env: &env, symbols: [symbol], vals: [val.eval(env: &env)])
+    switch expr {
+    // (define f (lambda (args) body)
+    case .cons(let symbol, .cons(.cons(.symbol("'lambda"), .cons(let args, .cons(let body, .null))), .null)):
+        extendEnv(env: &env, symbols: [symbol], vals: [(["'lambda", symbol, args, body] as Obj).eval(env: &env)])
+    
+    // (define (f args) body)
+    case .cons(.cons(let symbol, let args), let body):
+        extendEnv(env: &env, symbols: [symbol], vals: [(["'lambda", symbol, args, body] as Obj).eval(env: &env)])
+
+    // (define f val)
+    case .cons(let symbol, .cons(let val, .null)):
+        extendEnv(env: &env, symbols: [symbol], vals: [val.eval(env: &env)])
+    default:
+        return _raiseErrorDev(expr)
+    }
     return .null
 }
 
@@ -147,14 +158,14 @@ func sLet(expr: SCons, env: inout Env) -> Obj {
     var (bindings, body) = _take2(list: expr, default: (.null, .null))
     var env = env
 
-    var symbols = Obj.null
-    var vals = Obj.null
+    var symbols = [Obj]()
+    var vals = [Obj]()
     while case .cons(let binding, let rest) = bindings {
         guard case .cons(let symbol, let _val) = binding else { return _raiseErrorDev(binding, rest) /* TODO エラーハンドリング */ }
             // _val == (val . null)
             let val = _val.car()
-            symbols = Obj.cons(symbol, symbols)
-            vals = Obj.cons(val.eval(env: &env), vals)
+            symbols.append(symbol)
+            vals.append(val)
             bindings = rest
     }
     extendEnv(env: &env, symbols: symbols, vals: vals)
