@@ -187,7 +187,6 @@ func letrec(expr: SCons, env: inout Env) -> Obj {
         }
         env[env.count-1][s] = val
     }
-    print(env, body)
     return body.eval(env: &env)
 }
 
