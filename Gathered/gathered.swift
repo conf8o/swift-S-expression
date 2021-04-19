@@ -9,7 +9,8 @@ enum Obj {
     case string(String)
     case bool(Bool)
     case symbol(Symbol)
-    case lambda((Obj) -> Obj)
+    case builtin((Obj) -> Obj)
+    case closure(Closure)
     case special((Obj, inout Env) -> Obj)
     case null
     indirect case cons(Obj, Obj)
@@ -21,7 +22,8 @@ typealias SDouble = Obj   // .null | .double
 typealias SString = Obj   // .null | .string  
 typealias SSymbol = Obj   // .null | .symbol
 typealias SBool = Obj     // .null | .bool 
-typealias SLambda = Obj   // .null | .lambda
+typealias SBuiltin = Obj  // .null | .builtin
+typealias SClosure = Obj  // .null | .closure
 typealias SSpecial = Obj  // .null | .special
 typealias SNull = Obj     // .null
 typealias SCons = Obj     // .null | .cons
@@ -63,9 +65,12 @@ extension Obj {
             let _x = x.eval(env: &env)
 
             switch _x {
-            case .lambda:
+            case .builtin:
                 let _xs = xs.evalList(env: &env)
-                return apply(f: _x, args: _xs)
+                return applyBuiltin(f: _x, args: _xs)
+            case .closure:
+                let _xs = xs.evalList(env: &env)
+                return applyClosure(f: _x, args: _xs)
             case .special:
                 return applySpecialForm(m: _x, args: xs, env: &env)
             default:
@@ -88,9 +93,14 @@ extension Obj {
 }
 
 /// 関数の適用
-func apply(f: SLambda, args: SCons) -> Obj {
-    guard case .lambda(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
+func applyBuiltin(f: SBuiltin, args: SCons) -> Obj {
+    guard case .builtin(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
     return _f(args)
+}
+
+func applyClosure(f: SClosure, args: SCons) -> Obj {
+    guard case .closure(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
+    return _f.apply(args)
 }
 
 /// 特殊形式の適用
@@ -103,6 +113,19 @@ func applySpecialForm(m: SSpecial, args: SCons, env: inout Env) -> Obj {
 
 /// 環境([[変数: オブジェクト]])
 typealias Env = [[String: Obj]]
+
+/// 環境に変数と値を追加する。
+func extendEnv(env: inout Env, symbols: [SSymbol], vals: [Obj])  {
+    var newEnv = [String: Obj]()
+    for (symbol, val) in zip(symbols, vals) {
+        guard case .symbol(let s) = symbol else {
+            let _ = newEnv["🦀"]! /* TODO エラーハンドリング */
+            return
+        }
+        newEnv[s] = val
+    }
+    env.append(newEnv)
+}
 
 /// 環境に変数と値を追加する。
 func extendEnv(env: inout Env, symbols: SCons, vals: SCons)  {
@@ -136,6 +159,63 @@ func lookupVar(symbol: SSymbol, env: Env) -> Obj {
     return localEnv[s]!
 }
 
+
+//===--- Closure.swift ---===//
+
+class Closure {
+    var params: SCons
+    var body: Obj
+    var env: Env
+    
+    init(params: SCons, body: Obj, env: Env) {
+        self.params = params
+        self.body = body
+        self.env = env
+    }
+
+    func apply(_ args: SCons) -> Obj {
+        var env = self.env
+        extendEnv(env: &env, symbols: params, vals: args)
+        return body.eval(env: &env)
+    }
+}
+
+//===--- Obj+CustomStringConvertible.swift ---===//
+
+extension Obj: CustomStringConvertible {
+    var description: String {
+        switch self {
+        case .cons(let x, let xs):
+            var _xs = xs.description
+            switch xs {
+            case .cons:
+                _xs.removeFirst()
+                _xs.removeLast()
+            default:
+                break
+            }
+            return "(\(x) \(_xs))"
+        case .int(let n):
+            return n.description
+        case .double(let d):
+            return d.description
+        case .string(let s):
+            return "\"\(s)\""
+        case .bool(let b):
+            return b ? "#t" : "#f"
+        case .symbol(let s):
+            return s
+        case .builtin:
+            return "(BuiltinFunction)"
+        case .closure:
+            return "(Closure)"
+        case .special:
+            return "(SpecialForm)"
+        case .null:
+            return ""
+        }
+    }
+}
 
 //===--- Obj+Literal.swift ---===//
 
@@ -178,16 +258,13 @@ func _raiseErrorDev<T>(_ obj: Obj...) -> T {
 
 /// リストの最初の二つをタプルで取り出す。
 func _take2(list: SCons, default obj: (Obj, Obj))-> (Obj, Obj) {
-    guard case .cons(let x, let rest) = list else { return obj }
-    guard case .cons(let y, _) = rest else { return obj }
+    guard case .cons(let x, .cons(let y, _)) = list else { return obj }
     return (x, y)
 }
 
 /// リストの最初の三つをタプルで取り出す。
 func _take3(list: SCons, default obj: (Obj, Obj, Obj))-> (Obj, Obj, Obj) {
-    guard case .cons(let x, let xrest) = list else { return obj }
-    guard case .cons(let y, let yrest) = xrest else { return obj }
-    guard case .cons(let z, _) = yrest else { return obj }
+    guard case .cons(let x, .cons(let y, .cons(let z, _))) = list else { return obj }
     return (x, y, z)
 }
 
@@ -247,8 +324,8 @@ class DispatchFunction {
         self.forDouble = builtinOpeDouble.makeOperator(double)
     }
 
-    func toSLambda() -> SLambda {
-        return .lambda { list in
+    func toSBuiltin() -> SBuiltin {
+        return .builtin { list in
             guard case .cons(let x, _) = list else {
                 return _raiseErrorDev(list) // TODO エラーハンドリング
             }
@@ -265,13 +342,13 @@ class DispatchFunction {
 }
 
 /// 組み込み演算子
-let builtinOperator: [String: SLambda] = [
-    "'+": DispatchFunction(int: +, double: +).toSLambda(),
-    "'-": DispatchFunction(int: -, double: -).toSLambda(),
-    "'*": DispatchFunction(int: *, double: *).toSLambda(),
-    "'/": DispatchFunction(int: /, double: /).toSLambda(),
-    "'%": .lambda(builtinOpeInt.makeOperator(%)),
-    "'=": .lambda { (obj: SCons) -> SInt in
+let builtinOperator: [String: SBuiltin] = [
+    "'+": DispatchFunction(int: +, double: +).toSBuiltin(),
+    "'-": DispatchFunction(int: -, double: -).toSBuiltin(),
+    "'*": DispatchFunction(int: *, double: *).toSBuiltin(),
+    "'/": DispatchFunction(int: /, double: /).toSBuiltin(),
+    "'%": .builtin(builtinOpeInt.makeOperator(%)),
+    "'=": .builtin { (obj: SCons) -> SInt in
         let (x, y) = _take2(list: obj, default: (.null, .null))
         // TODO いろんな型
         guard case .int(let n) = x, case .int(let m) = y else { return .bool(false) }
@@ -280,34 +357,39 @@ let builtinOperator: [String: SLambda] = [
     }
 ]
 
-// 予約語
-/// 自身を示すシンボル TODO 正当かどうか。
-let _SELF = "'self"
-func _selfSymbol(env: Env) -> SSymbol? { 
-    env.last { $0[_SELF] != nil }.flatMap { $0[_SELF] } 
-}
-
 /// lambda式
-func lambda(expr: SCons, env: inout Env) -> SLambda {
-    let (params, body) = _take2(list: expr, default: (.null, .null))
-    var env = env
-    func closure(args: SCons) -> Obj {
-        extendEnv(env: &env, symbols: params, vals: args)
-        // TODO selfは正当かどうか確かめる。
-        if let selfSymbol = _selfSymbol(env: env) {
-            extendEnv(env: &env, symbols: [selfSymbol], vals: [(["'lambda", params, body] as Obj).eval(env: &env)])
-        }
-        return body.eval(env: &env)
+func lambda(expr: SCons, env: inout Env) -> SClosure {
+    switch expr {
+    case .cons(let params, .cons(let body, .null)):
+        let closure = Closure(params: params, body: body, env: env)
+        return .closure(closure)
+    default:
+        return _raiseErrorDev(expr)
     }
-    return .lambda(closure)
 }
 
 /// 定義文
 func define(expr: SCons, env: inout Env) -> SNull {
-    let (symbol, val) = _take2(list: expr, default: (.null, .null))
-    // TODO selfは正当かどうか確かめる。
-    extendEnv(env: &env, symbols: [.symbol(_SELF)], vals: [symbol])
-    extendEnv(env: &env, symbols: [symbol], vals: [val.eval(env: &env)])
+    switch expr {
+    // (define (f args) body)
+    case .cons(.cons(let symbol, let args), let body):
+        extendEnv(
+            env: &env, 
+            symbols: [symbol], 
+            vals: [(["'letrec", [[symbol, ["'lambda", args, body]]],
+                        symbol] as Obj).eval(env: &env)]
+        )
+
+    // (define f val)
+    case .cons(let symbol, .cons(let val, .null)):
+        extendEnv(
+            env: &env, 
+            symbols: [symbol], 
+            vals: [(["'letrec", [[symbol, val]], symbol] as Obj).eval(env: &env)]
+        )
+    default:
+        return _raiseErrorDev(expr)
+    }
     return .null
 }
 
@@ -316,17 +398,45 @@ func sLet(expr: SCons, env: inout Env) -> Obj {
     var (bindings, body) = _take2(list: expr, default: (.null, .null))
     var env = env
 
-    var symbols = Obj.null
-    var vals = Obj.null
+    var symbols = [Obj]()
+    var vals = [Obj]()
     while case .cons(let binding, let rest) = bindings {
         guard case .cons(let symbol, let _val) = binding else { return _raiseErrorDev(binding, rest) /* TODO エラーハンドリング */ }
             // _val == (val . null)
             let val = _val.car()
-            symbols = Obj.cons(symbol, symbols)
-            vals = Obj.cons(val.eval(env: &env), vals)
+            symbols.append(symbol)
+            vals.append(val.eval(env: &env))
             bindings = rest
     }
     extendEnv(env: &env, symbols: symbols, vals: vals)
+    return body.eval(env: &env)
+}
+
+func letrec(expr: SCons, env: inout Env) -> Obj {
+    var (bindings, body) = _take2(list: expr, default: (.null, .null))
+    var env = env
+
+    var symbols = [SSymbol]()
+    var valExprs = [Obj]()
+    var dummies = [SNull]()
+    while case .cons(let binding, let rest) = bindings {
+        guard case .cons(let symbol, let _val) = binding else { return _raiseErrorDev(binding, rest) /* TODO エラーハンドリング */ }
+            // _val == (val . null)
+            let valExpr = _val.car()
+            symbols.append(symbol)
+            valExprs.append(valExpr)
+            dummies.append(.null)
+            bindings = rest
+    }
+    extendEnv(env: &env, symbols: symbols, vals: dummies)
+    let vals = valExprs.map { val -> Obj in val.eval(env: &env) }
+    for case (.symbol(let s), let val) in zip(symbols, vals) {
+        if case .closure(var _closure) = val {
+            _closure.env[env.count-1][s] = val
+        }
+        env[env.count-1][s] = val
+    }
+    print(env, body)
     return body.eval(env: &env)
 }
 
@@ -355,21 +465,22 @@ let builtinSpecialForm: [String: SSpecial] = [
     "'lambda": .special(lambda),
     "'define": .special(define),
     "'if": .special(sIf),
-    "'let": .special(sLet)
+    "'let": .special(sLet),
+    "'letrec": .special(letrec)
 ]
 
-let builtinFunction: [String: SLambda] = [
-    "'car": .lambda { obj in obj.car().car() },
-    "'cdr": .lambda { obj in obj.car().cdr() },
-    "'cons": .lambda { obj in Obj.cons(obj.car(), obj.cdr().car()) },
-    "'null?": .lambda { obj in 
+let builtinFunction: [String: SBuiltin] = [
+    "'car": .builtin { obj in obj.car().car() },
+    "'cdr": .builtin { obj in obj.car().cdr() },
+    "'cons": .builtin { obj in Obj.cons(obj.car(), obj.cdr().car()) },
+    "'null?": .builtin { obj in 
         if case .null = obj.car() {
             return .bool(true)
         } else {
             return .bool(false)
         }
     },
-    "'list": .lambda { obj in obj }
+    "'list": .builtin { obj in obj }
 ]
 
 /// グローバル環境
