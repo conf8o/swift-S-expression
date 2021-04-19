@@ -7,7 +7,8 @@ public enum Obj {
     case string(String)
     case bool(Bool)
     case symbol(Symbol)
-    case lambda((Obj) -> Obj)
+    case builtin((Obj) -> Obj)
+    case closure(Closure)
     case special((Obj, inout Env) -> Obj)
     case null
     indirect case cons(Obj, Obj)
@@ -19,7 +20,8 @@ public typealias SDouble = Obj   // .null | .double
 public typealias SString = Obj   // .null | .string  
 public typealias SSymbol = Obj   // .null | .symbol
 public typealias SBool = Obj     // .null | .bool 
-public typealias SLambda = Obj   // .null | .lambda
+public typealias SBuiltin = Obj  // .null | .builtin
+public typealias SClosure = Obj  // .null | .closure
 public typealias SSpecial = Obj  // .null | .special
 public typealias SNull = Obj     // .null
 public typealias SCons = Obj     // .null | .cons
@@ -61,9 +63,12 @@ public extension Obj {
             let _x = x.eval(env: &env)
 
             switch _x {
-            case .lambda:
+            case .builtin:
                 let _xs = xs.evalList(env: &env)
-                return apply(f: _x, args: _xs)
+                return applyBuiltin(f: _x, args: _xs)
+            case .closure:
+                let _xs = xs.evalList(env: &env)
+                return applyClosure(f: _x, args: _xs)
             case .special:
                 return applySpecialForm(m: _x, args: xs, env: &env)
             default:
@@ -86,9 +91,14 @@ public extension Obj {
 }
 
 /// 関数の適用
-public func apply(f: SLambda, args: SCons) -> Obj {
-    guard case .lambda(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
+public func applyBuiltin(f: SBuiltin, args: SCons) -> Obj {
+    guard case .builtin(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
     return _f(args)
+}
+
+public func applyClosure(f: SClosure, args: SCons) -> Obj {
+    guard case .closure(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
+    return _f.apply(args)
 }
 
 /// 特殊形式の適用

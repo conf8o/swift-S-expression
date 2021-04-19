@@ -75,8 +75,8 @@ class DispatchFunction {
         self.forDouble = builtinOpeDouble.makeOperator(double)
     }
 
-    func toSLambda() -> SLambda {
-        return .lambda { list in
+    func toSBuiltin() -> SBuiltin {
+        return .builtin { list in
             guard case .cons(let x, _) = list else {
                 return _raiseErrorDev(list) // TODO エラーハンドリング
             }
@@ -93,13 +93,13 @@ class DispatchFunction {
 }
 
 /// 組み込み演算子
-let builtinOperator: [String: SLambda] = [
-    "'+": DispatchFunction(int: +, double: +).toSLambda(),
-    "'-": DispatchFunction(int: -, double: -).toSLambda(),
-    "'*": DispatchFunction(int: *, double: *).toSLambda(),
-    "'/": DispatchFunction(int: /, double: /).toSLambda(),
-    "'%": .lambda(builtinOpeInt.makeOperator(%)),
-    "'=": .lambda { (obj: SCons) -> SInt in
+let builtinOperator: [String: SBuiltin] = [
+    "'+": DispatchFunction(int: +, double: +).toSBuiltin(),
+    "'-": DispatchFunction(int: -, double: -).toSBuiltin(),
+    "'*": DispatchFunction(int: *, double: *).toSBuiltin(),
+    "'/": DispatchFunction(int: /, double: /).toSBuiltin(),
+    "'%": .builtin(builtinOpeInt.makeOperator(%)),
+    "'=": .builtin { (obj: SCons) -> SInt in
         let (x, y) = _take2(list: obj, default: (.null, .null))
         // TODO いろんな型
         guard case .int(let n) = x, case .int(let m) = y else { return .bool(false) }
@@ -108,26 +108,12 @@ let builtinOperator: [String: SLambda] = [
     }
 ]
 
-// TODO 再帰
-
 /// lambda式
-func lambda(expr: SCons, env: inout Env) -> SLambda {
-    var env = env
+func lambda(expr: SCons, env: inout Env) -> SClosure {
     switch expr {
     case .cons(let params, .cons(let body, .null)):
-        func closure(args: SCons) -> Obj {
-            extendEnv(env: &env, symbols: params, vals: args)
-            return body.eval(env: &env)
-        }
-        return .lambda(closure)
-    case .cons(let name, .cons(let params, .cons(let body, .null))):
-        func closure(args: SCons) -> Obj {
-            extendEnv(env: &env, symbols: [name], vals: [(["'lambda", params, body] as Obj).eval(env: &env)])
-            extendEnv(env: &env, symbols: params, vals: args)
-            return body.eval(env: &env)
-        }
-
-        return .lambda(closure)
+        let closure = Closure(params: params, body: body, env: env)
+        return .closure(closure)
     default:
         return _raiseErrorDev(expr)
     }
@@ -136,17 +122,22 @@ func lambda(expr: SCons, env: inout Env) -> SLambda {
 /// 定義文
 func define(expr: SCons, env: inout Env) -> SNull {
     switch expr {
-    // (define f (lambda (args) body)
-    case .cons(let symbol, .cons(.cons(.symbol("'lambda"), .cons(let args, .cons(let body, .null))), .null)):
-        extendEnv(env: &env, symbols: [symbol], vals: [(["'lambda", symbol, args, body] as Obj).eval(env: &env)])
-    
     // (define (f args) body)
     case .cons(.cons(let symbol, let args), let body):
-        extendEnv(env: &env, symbols: [symbol], vals: [(["'lambda", symbol, args, body] as Obj).eval(env: &env)])
+        extendEnv(
+            env: &env, 
+            symbols: [symbol], 
+            vals: [(["'letrec", [[symbol, ["'lambda", args, body]]],
+                        symbol] as Obj).eval(env: &env)]
+        )
 
     // (define f val)
     case .cons(let symbol, .cons(let val, .null)):
-        extendEnv(env: &env, symbols: [symbol], vals: [val.eval(env: &env)])
+        extendEnv(
+            env: &env, 
+            symbols: [symbol], 
+            vals: [(["'letrec", [[symbol, val]], symbol] as Obj).eval(env: &env)]
+        )
     default:
         return _raiseErrorDev(expr)
     }
@@ -165,10 +156,38 @@ func sLet(expr: SCons, env: inout Env) -> Obj {
             // _val == (val . null)
             let val = _val.car()
             symbols.append(symbol)
-            vals.append(val)
+            vals.append(val.eval(env: &env))
             bindings = rest
     }
     extendEnv(env: &env, symbols: symbols, vals: vals)
+    return body.eval(env: &env)
+}
+
+func letrec(expr: SCons, env: inout Env) -> Obj {
+    var (bindings, body) = _take2(list: expr, default: (.null, .null))
+    var env = env
+
+    var symbols = [SSymbol]()
+    var valExprs = [Obj]()
+    var dummies = [SNull]()
+    while case .cons(let binding, let rest) = bindings {
+        guard case .cons(let symbol, let _val) = binding else { return _raiseErrorDev(binding, rest) /* TODO エラーハンドリング */ }
+            // _val == (val . null)
+            let valExpr = _val.car()
+            symbols.append(symbol)
+            valExprs.append(valExpr)
+            dummies.append(.null)
+            bindings = rest
+    }
+    extendEnv(env: &env, symbols: symbols, vals: dummies)
+    let vals = valExprs.map { val -> Obj in val.eval(env: &env) }
+    for case (.symbol(let s), let val) in zip(symbols, vals) {
+        if case .closure(var _closure) = val {
+            _closure.env[env.count-1][s] = val
+        }
+        env[env.count-1][s] = val
+    }
+    print(env, body)
     return body.eval(env: &env)
 }
 
@@ -197,21 +216,22 @@ let builtinSpecialForm: [String: SSpecial] = [
     "'lambda": .special(lambda),
     "'define": .special(define),
     "'if": .special(sIf),
-    "'let": .special(sLet)
+    "'let": .special(sLet),
+    "'letrec": .special(letrec)
 ]
 
-let builtinFunction: [String: SLambda] = [
-    "'car": .lambda { obj in obj.car().car() },
-    "'cdr": .lambda { obj in obj.car().cdr() },
-    "'cons": .lambda { obj in Obj.cons(obj.car(), obj.cdr().car()) },
-    "'null?": .lambda { obj in 
+let builtinFunction: [String: SBuiltin] = [
+    "'car": .builtin { obj in obj.car().car() },
+    "'cdr": .builtin { obj in obj.car().cdr() },
+    "'cons": .builtin { obj in Obj.cons(obj.car(), obj.cdr().car()) },
+    "'null?": .builtin { obj in 
         if case .null = obj.car() {
             return .bool(true)
         } else {
             return .bool(false)
         }
     },
-    "'list": .lambda { obj in obj }
+    "'list": .builtin { obj in obj }
 ]
 
 /// グローバル環境
