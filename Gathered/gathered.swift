@@ -69,7 +69,7 @@ extension Obj {
             case .closure:
                 return applyClosure(f: _x, args: xs.evalList(env: &env))
             case .special:
-                return applySpecialForm(m: _x, args: xs, env: &env)
+                return applySpecialForm(f: _x, args: xs, env: &env)
             default:
                 return Obj.cons(_x, xs.evalList(env: &env))
             }
@@ -101,9 +101,9 @@ func applyClosure(f: SClosure, args: SCons) -> Obj {
 }
 
 /// 特殊形式の適用
-func applySpecialForm(m: SSpecial, args: SCons, env: inout Env) -> Obj {
-    guard case .special(let _m) = m else { return _raiseErrorDev(m, args) /* TODO エラーハンドリング */ }
-    return _m(args, &env)
+func applySpecialForm(f: SSpecial, args: SCons, env: inout Env) -> Obj {
+    guard case .special(let _f) = f else { return _raiseErrorDev(m, args) /* TODO エラーハンドリング */ }
+    return _f(args, &env)
 }
 
 
