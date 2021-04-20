@@ -5,6 +5,13 @@ extension Obj: ExpressibleByIntegerLiteral {
     }
 }
 
+/// Objのリテラル表現(Double)
+extension Obj: ExpressibleByFloatLiteral {
+    public init(floatLiteral: Double) {
+        self = .double(floatLiteral)
+    }
+}
+
 /// Objのリテラル表現(String, Symbol)
 extension Obj: ExpressibleByStringLiteral {
     public init(stringLiteral: String) {
