@@ -19,7 +19,8 @@ extension Obj: CustomStringConvertible {
             return "\"\(s)\""
         case .bool(let b):
             return b ? "#t" : "#f"
-        case .symbol(let s):
+        case .symbol(var s):
+            s.removeFirst()
             return s
         case .builtin:
             return "(BuiltinFunction)"

@@ -16,7 +16,7 @@ struct Main {
         return last
     }
 }
-var debug = Main(env: globalEnv)
+var debug = Main(env: [])
 
 debug.debug(
     ["'+", 1, 2],

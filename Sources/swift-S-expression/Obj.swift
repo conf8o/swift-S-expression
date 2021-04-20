@@ -61,19 +61,15 @@ public extension Obj {
             return lookupVar(symbol: self, env: env)
         case .cons(let x, let xs):
             let _x = x.eval(env: &env)
-
             switch _x {
             case .builtin:
-                let _xs = xs.evalList(env: &env)
-                return applyBuiltin(f: _x, args: _xs)
+                return applyBuiltin(f: _x, args: xs.evalList(env: &env))
             case .closure:
-                let _xs = xs.evalList(env: &env)
-                return applyClosure(f: _x, args: _xs)
+                return applyClosure(f: _x, args: xs.evalList(env: &env))
             case .special:
                 return applySpecialForm(m: _x, args: xs, env: &env)
             default:
-                let _xs = xs.evalList(env: &env)
-                return Obj.cons(_x, _xs)
+                return Obj.cons(_x, xs.evalList(env: &env))
             }
         default:
             return self
@@ -90,12 +86,13 @@ public extension Obj {
     }
 }
 
-/// 関数の適用
+/// 組み込み関数の適用
 public func applyBuiltin(f: SBuiltin, args: SCons) -> Obj {
     guard case .builtin(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
     return _f(args)
 }
 
+/// ユーザー定義関数(クロージャ(ラムダ式))の適用
 public func applyClosure(f: SClosure, args: SCons) -> Obj {
     guard case .closure(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
     return _f.apply(args)

@@ -4,11 +4,7 @@ public typealias Env = [[String: Obj]]
 /// 環境に変数と値を追加する。
 public func extendEnv(env: inout Env, symbols: [SSymbol], vals: [Obj])  {
     var newEnv = [String: Obj]()
-    for (symbol, val) in zip(symbols, vals) {
-        guard case .symbol(let s) = symbol else {
-            let _ = newEnv["🦀"]! /* TODO エラーハンドリング */
-            return
-        }
+    for case (.symbol(let s), let val) in zip(symbols, vals) {
         newEnv[s] = val
     }
     env.append(newEnv)
@@ -19,12 +15,8 @@ public func extendEnv(env: inout Env, symbols: SCons, vals: SCons)  {
     var newEnv = [String: Obj]()
     var _symbols = symbols
     var _vals = vals
-    while case .cons(let symbol, let restS) = _symbols,
+    while case .cons(.symbol(let s), let restS) = _symbols,
           case .cons(let val, let restV) = _vals {
-        guard case .symbol(let s) = symbol else {
-            let _ = newEnv["🦀"]! /* TODO エラーハンドリング */
-            return
-        }
         newEnv[s] = val
         _symbols = restS
         _vals = restV
@@ -37,11 +29,12 @@ public func lookupVar(symbol: SSymbol, env: Env) -> Obj {
     guard case .symbol(let s) = symbol else {
         return _raiseErrorDev(symbol) // TODO エラーハンドリング
     }
-
-    guard let localEnv = (env.last { $0[s] != nil }) else {
+    if let localEnv = (env.last { $0[s] != nil }) {
+        return localEnv[s]!
+    } else if let v = BUILTIN_ENV[s] {
+        return v
+    } else {
         print("Not assigned symbol.")
         return _raiseErrorDev(symbol) // TODO エラーハンドリング
     }
-    
-    return localEnv[s]!
 }
