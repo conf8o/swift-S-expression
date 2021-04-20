@@ -174,7 +174,7 @@ class Closure {
 //===--- Obj+CustomStringConvertible.swift ---===//
 
 extension Obj: CustomStringConvertible {
-    var description: String {
+    public var description: String {
         switch self {
         case .cons(let x, let xs):
             var _xs = xs.description
@@ -182,10 +182,13 @@ extension Obj: CustomStringConvertible {
             case .cons:
                 _xs.removeFirst()
                 _xs.removeLast()
-            default:
+                _xs = " \(_xs)"
+            case .null:
                 break
+            default:
+                _xs = " \(_xs)"
             }
-            return "(\(x) \(_xs))"
+            return "(\(x)\(_xs))"
         case .int(let n):
             return n.description
         case .double(let d):

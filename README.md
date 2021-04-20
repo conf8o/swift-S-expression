@@ -10,6 +10,7 @@ struct Main {
     mutating func debug(_ objs: Obj...) {
         for (i, obj) in objs.enumerated() {
             print("===--- S:\(i+1) ---===")
+            print(obj)
             let res = obj.eval(env: &env)
             print("Env:", env)
             print("Result:", res)
@@ -80,55 +81,72 @@ debug.debug(
 
 ```
 ===--- S:1 ---===
+(+ 1 2)
 Env: [[:]]
 Result: 3
 ===--- S:2 ---===
+(+ 1.0 2.0)
 Env: [[:]]
 Result: 3.0
 ===--- S:3 ---===
+(/ 22.0 7.0)
 Env: [[:]]
 Result: 3.142857142857143
 ===--- S:4 ---===
+((lambda (x y) (+ x y)) 1 2)
 Env: [[:]]
 Result: 3
 ===--- S:5 ---===
+(define x (+ 1 2))
 Env: [["\'x": 3]]
 Result: 
 ===--- S:6 ---===
+(if (= 1 2) (+ 10 2) (% 5 2))
 Env: [["\'x": 3]]
 Result: 1
 ===--- S:7 ---===
-Env: [["\'x": 3, "\'f": (Closure)]]
+(define f (lambda (x y) (* x y)))
+Env: [["\'f": (Closure), "\'x": 3]]
 Result: 
 ===--- S:8 ---===
-Env: [["\'x": 3, "\'f": (Closure)]]
+(f 10 2)
+Env: [["\'f": (Closure), "\'x": 3]]
 Result: 20
 ===--- S:9 ---===
-Env: [["\'x": 3, "\'f": (Closure)]]
+(let ((x 1) (y 10)) (+ x y))
+Env: [["\'f": (Closure), "\'x": 3]]
 Result: 11
 ===--- S:10 ---===
-Env: [["\'x": 3, "\'sum": 10, "\'f": (Closure)]]
+(define sum 10)
+Env: [["\'sum": 10, "\'f": (Closure), "\'x": 3]]
 Result: 
 ===--- S:11 ---===
-Env: [["\'x": 3, "\'sum": 10, "\'f": (Closure)]]
+((lambda (x) (+ x sum)) 100)
+Env: [["\'sum": 10, "\'f": (Closure), "\'x": 3]]
 Result: 110
 ===--- S:12 ---===
-Env: [["\'x": 3, "\'sum": 10, "\'f": (Closure)]]
+(letrec ((fact (lambda (n) (if (= 1 n) 1 (* n (fact (- n 1))))))) (fact 5))
+Env: [["\'sum": 10, "\'f": (Closure), "\'x": 3]]
 Result: 120
 ===--- S:13 ---===
-Env: [["\'x": 3, "\'sum": 10, "\'f": (Closure), "\'fib": (Closure)]]
+(define fib (lambda (n) (if (= 0 n) 0 (if (= 1 n) 1 (+ (fib (- n 1)) (fib (- n 2)))))))
+Env: [["\'x": 3, "\'f": (Closure), "\'fib": (Closure), "\'sum": 10]]
 Result: 
 ===--- S:14 ---===
-Env: [["\'x": 3, "\'sum": 10, "\'f": (Closure), "\'fib": (Closure)]]
+(fib 9)
+Env: [["\'x": 3, "\'f": (Closure), "\'fib": (Closure), "\'sum": 10]]
 Result: 34
 ===--- S:15 ---===
-Env: [["\'x": 3, "\'sum": 10, "\'f": (Closure), "\'fib": (Closure)]]
+((lambda (f x y) (f (+ x y) (* x y))) * 10 5)
+Env: [["\'x": 3, "\'f": (Closure), "\'fib": (Closure), "\'sum": 10]]
 Result: 750
 ===--- S:16 ---===
-Env: [["\'x": 3, "\'sum": (Closure), "\'f": (Closure), "\'fib": (Closure)]]
+(define (sum col) (if (null? col) 0 (+ (car col) (sum (cdr col)))))
+Env: [["\'x": 3, "\'f": (Closure), "\'fib": (Closure), "\'sum": (Closure)]]
 Result: 
 ===--- S:17 ---===
-Env: [["\'x": 3, "\'sum": (Closure), "\'f": (Closure), "\'fib": (Closure)]]
+(sum (list 1 2 3 4 5))
+Env: [["\'x": 3, "\'f": (Closure), "\'fib": (Closure), "\'sum": (Closure)]]
 Result: 15
 ```
 

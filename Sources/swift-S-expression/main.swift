@@ -3,6 +3,7 @@ struct Main {
     mutating func debug(_ objs: Obj...) {
         for (i, obj) in objs.enumerated() {
             print("===--- S:\(i+1) ---===")
+            print(obj)
             let res = obj.eval(env: &env)
             print("Env:", env)
             print("Result:", res)
