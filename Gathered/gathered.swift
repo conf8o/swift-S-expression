@@ -429,7 +429,7 @@ func letrec(expr: SCons, env: inout Env) -> Obj {
     let vals = valExprs.map { val -> Obj in val.eval(env: &env) }
     for case (.symbol(let s), let val) in zip(symbols, vals) {
         if case .closure(let _closure) = val {
-            _closure.env[env.count-1][s] = val
+            _closure.env[_closure.env.count-1][s] = val
         }
         env[env.count-1][s] = val
     }
