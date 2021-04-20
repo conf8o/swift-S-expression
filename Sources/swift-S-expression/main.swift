@@ -16,7 +16,7 @@ struct Main {
         return last
     }
 }
-var debug = Main(env: [])
+var debug = Main(env: [[:]])
 
 debug.debug(
     ["'+", 1, 2],
@@ -60,10 +60,9 @@ debug.debug(
     [["'lambda", ["'f", "'x", "'y"], ["'f", ["'+", "'x", "'y"], ["'*", "'x", "'y"]]],
      "'*", 10, 5],
 
-     ["'define", "'sum",
-        ["'lambda", ["'col"],
-            ["'if", ["'null?", "'col"],
-                0,
-                ["'+", ["'car", "'col"], ["'sum", ["'cdr", "'col"]]]]]],
+     ["'define", ["'sum", "'col"],
+        ["'if", ["'null?", "'col"],
+            0,
+            ["'+", ["'car", "'col"], ["'sum", ["'cdr", "'col"]]]]],
     ["'sum", ["'list", 1, 2, 3, 4, 5]]
 )
