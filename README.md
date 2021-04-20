@@ -23,7 +23,7 @@ struct Main {
         return last
     }
 }
-var debug = Main(env: [])
+var debug = Main(env: [[:]])
 
 debug.debug(
     ["'+", 1, 2],
@@ -67,29 +67,29 @@ debug.debug(
     [["'lambda", ["'f", "'x", "'y"], ["'f", ["'+", "'x", "'y"], ["'*", "'x", "'y"]]],
      "'*", 10, 5],
 
-     ["'define", "'sum",
-        ["'lambda", ["'col"],
-            ["'if", ["'null?", "'col"],
-                0,
-                ["'+", ["'car", "'col"], ["'sum", ["'cdr", "'col"]]]]]],
+     ["'define", ["'sum", "'col"],
+        ["'if", ["'null?", "'col"],
+            0,
+            ["'+", ["'car", "'col"], ["'sum", ["'cdr", "'col"]]]]],
     ["'sum", ["'list", 1, 2, 3, 4, 5]]
 )
+
 ```
 
 ### 結果
 
 ```
 ===--- S:1 ---===
-Env: []
+Env: [[:]]
 Result: 3
 ===--- S:2 ---===
-Env: []
+Env: [[:]]
 Result: 3.0
 ===--- S:3 ---===
-Env: []
+Env: [[:]]
 Result: 3.142857142857143
 ===--- S:4 ---===
-Env: []
+Env: [[:]]
 Result: 3
 ===--- S:5 ---===
 Env: [["\'x": 3]]
@@ -98,37 +98,37 @@ Result:
 Env: [["\'x": 3]]
 Result: 1
 ===--- S:7 ---===
-Env: [["\'x": 3], ["\'f": (Closure)]]
+Env: [["\'x": 3, "\'f": (Closure)]]
 Result: 
 ===--- S:8 ---===
-Env: [["\'x": 3], ["\'f": (Closure)]]
+Env: [["\'x": 3, "\'f": (Closure)]]
 Result: 20
 ===--- S:9 ---===
-Env: [["\'x": 3], ["\'f": (Closure)]]
+Env: [["\'x": 3, "\'f": (Closure)]]
 Result: 11
 ===--- S:10 ---===
-Env: [["\'x": 3], ["\'f": (Closure)], ["\'sum": 10]]
+Env: [["\'x": 3, "\'sum": 10, "\'f": (Closure)]]
 Result: 
 ===--- S:11 ---===
-Env: [["\'x": 3], ["\'f": (Closure)], ["\'sum": 10]]
+Env: [["\'x": 3, "\'sum": 10, "\'f": (Closure)]]
 Result: 110
 ===--- S:12 ---===
-Env: [["\'x": 3], ["\'f": (Closure)], ["\'sum": 10]]
+Env: [["\'x": 3, "\'sum": 10, "\'f": (Closure)]]
 Result: 120
 ===--- S:13 ---===
-Env: [["\'x": 3], ["\'f": (Closure)], ["\'sum": 10], ["\'fib": (Closure)]]
+Env: [["\'x": 3, "\'sum": 10, "\'f": (Closure), "\'fib": (Closure)]]
 Result: 
 ===--- S:14 ---===
-Env: [["\'x": 3], ["\'f": (Closure)], ["\'sum": 10], ["\'fib": (Closure)]]
+Env: [["\'x": 3, "\'sum": 10, "\'f": (Closure), "\'fib": (Closure)]]
 Result: 34
 ===--- S:15 ---===
-Env: [["\'x": 3], ["\'f": (Closure)], ["\'sum": 10], ["\'fib": (Closure)]]
+Env: [["\'x": 3, "\'sum": 10, "\'f": (Closure), "\'fib": (Closure)]]
 Result: 750
 ===--- S:16 ---===
-Env: [["\'x": 3], ["\'f": (Closure)], ["\'sum": 10], ["\'fib": (Closure)], ["\'sum": (Closure)]]
+Env: [["\'x": 3, "\'sum": (Closure), "\'f": (Closure), "\'fib": (Closure)]]
 Result: 
 ===--- S:17 ---===
-Env: [["\'x": 3], ["\'f": (Closure)], ["\'sum": 10], ["\'fib": (Closure)], ["\'sum": (Closure)]]
+Env: [["\'x": 3, "\'sum": (Closure), "\'f": (Closure), "\'fib": (Closure)]]
 Result: 15
 ```
 
