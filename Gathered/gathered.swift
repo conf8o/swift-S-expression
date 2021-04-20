@@ -376,22 +376,14 @@ func lambda(expr: SCons, env: inout Env) -> SClosure {
 func define(expr: SCons, env: inout Env) -> SNull {
     switch expr {
     // (define (f args) body)
-    case .cons(.cons(let symbol, let args), let body):
-        extendEnv(
-            env: &env, 
-            symbols: [symbol], 
-            vals: [(["'letrec", [[symbol, ["'lambda", args, body]]],
-                        symbol] as Obj).eval(env: &env)]
-        )
+    case .cons(.cons(.symbol(let symbol), let args), .cons(let body, .null)):
+        env[env.count-1][symbol] = (["'letrec", [[.symbol(symbol), ["'lambda", args, body]]],
+                                        .symbol(symbol)] as Obj).eval(env: &env)
 
     // (define f val)
-    case .cons(let symbol, .cons(let val, .null)):
-        extendEnv(
-            env: &env, 
-            symbols: [symbol], 
-            vals: [(["'letrec", [[symbol, val]],
-                        symbol] as Obj).eval(env: &env)]
-        )
+    case .cons(.symbol(let symbol), .cons(let val, .null)):
+        env[env.count-1][symbol] = (["'letrec", [[.symbol(symbol), val]],
+                                        .symbol(symbol)] as Obj).eval(env: &env)
     default:
         return _raiseErrorDev(expr)
     }
