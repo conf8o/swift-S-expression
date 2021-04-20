@@ -1,18 +1,18 @@
-/// Objのリテラル表現(Int)
+/// Objのリテラル表記(Int)
 extension Obj: ExpressibleByIntegerLiteral {
     public init(integerLiteral: Int) {
         self = .int(integerLiteral)
     }
 }
 
-/// Objのリテラル表現(Double)
+/// Objのリテラル表記(Double)
 extension Obj: ExpressibleByFloatLiteral {
     public init(floatLiteral: Double) {
         self = .double(floatLiteral)
     }
 }
 
-/// Objのリテラル表現(String, Symbol)
+/// Objのリテラル表記(String, Symbol)
 extension Obj: ExpressibleByStringLiteral {
     public init(stringLiteral: String) {
         if let quote = stringLiteral.first, quote == "'" {
@@ -23,7 +23,7 @@ extension Obj: ExpressibleByStringLiteral {
     }
 }
 
-/// Objのリテラル表現(Array)
+/// Objのリテラル表記(Array)
 extension Obj: ExpressibleByArrayLiteral {
     public init(arrayLiteral: Obj...) {
         self = S(arrayLiteral)
