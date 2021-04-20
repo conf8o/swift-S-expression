@@ -1,8 +1,8 @@
 (require '[clojure.string :as string]
          '[clojure.java.io :as io])
 
-(defn remove-public [s]
-  (string/replace s #"public " ""))
+(defn remove-modifier [s]
+  (string/replace s #"(public|private) " ""))
 
 (def base (io/file "../Sources/swift-S-expression"))
 
@@ -27,6 +27,6 @@
 
 (->> base
      sources
-     (map remove-public)
+     (map remove-modifier)
      (string/join "\n\n")
      (spit "gathered.swift"))

@@ -63,19 +63,15 @@ extension Obj {
             return lookupVar(symbol: self, env: env)
         case .cons(let x, let xs):
             let _x = x.eval(env: &env)
-
             switch _x {
             case .builtin:
-                let _xs = xs.evalList(env: &env)
-                return applyBuiltin(f: _x, args: _xs)
+                return applyBuiltin(f: _x, args: xs.evalList(env: &env))
             case .closure:
-                let _xs = xs.evalList(env: &env)
-                return applyClosure(f: _x, args: _xs)
+                return applyClosure(f: _x, args: xs.evalList(env: &env))
             case .special:
                 return applySpecialForm(m: _x, args: xs, env: &env)
             default:
-                let _xs = xs.evalList(env: &env)
-                return Obj.cons(_x, _xs)
+                return Obj.cons(_x, xs.evalList(env: &env))
             }
         default:
             return self
@@ -92,12 +88,13 @@ extension Obj {
     }
 }
 
-/// 関数の適用
+/// 組み込み関数の適用
 func applyBuiltin(f: SBuiltin, args: SCons) -> Obj {
     guard case .builtin(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
     return _f(args)
 }
 
+/// ユーザー定義関数(クロージャ(ラムダ式))の適用
 func applyClosure(f: SClosure, args: SCons) -> Obj {
     guard case .closure(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
     return _f.apply(args)
@@ -109,6 +106,7 @@ func applySpecialForm(m: SSpecial, args: SCons, env: inout Env) -> Obj {
     return _m(args, &env)
 }
 
+
 //===--- Env.swift ---===//
 
 /// 環境([[変数: オブジェクト]])
@@ -117,11 +115,7 @@ typealias Env = [[String: Obj]]
 /// 環境に変数と値を追加する。
 func extendEnv(env: inout Env, symbols: [SSymbol], vals: [Obj])  {
     var newEnv = [String: Obj]()
-    for (symbol, val) in zip(symbols, vals) {
-        guard case .symbol(let s) = symbol else {
-            let _ = newEnv["🦀"]! /* TODO エラーハンドリング */
-            return
-        }
+    for case (.symbol(let s), let val) in zip(symbols, vals) {
         newEnv[s] = val
     }
     env.append(newEnv)
@@ -132,12 +126,8 @@ func extendEnv(env: inout Env, symbols: SCons, vals: SCons)  {
     var newEnv = [String: Obj]()
     var _symbols = symbols
     var _vals = vals
-    while case .cons(let symbol, let restS) = _symbols,
+    while case .cons(.symbol(let s), let restS) = _symbols,
           case .cons(let val, let restV) = _vals {
-        guard case .symbol(let s) = symbol else {
-            let _ = newEnv["🦀"]! /* TODO エラーハンドリング */
-            return
-        }
         newEnv[s] = val
         _symbols = restS
         _vals = restV
@@ -150,13 +140,14 @@ func lookupVar(symbol: SSymbol, env: Env) -> Obj {
     guard case .symbol(let s) = symbol else {
         return _raiseErrorDev(symbol) // TODO エラーハンドリング
     }
-
-    guard let localEnv = (env.last { $0[s] != nil }) else {
+    if let localEnv = (env.last { $0[s] != nil }) {
+        return localEnv[s]!
+    } else if let v = BUILTIN_ENV[s] {
+        return v
+    } else {
         print("Not assigned symbol.")
         return _raiseErrorDev(symbol) // TODO エラーハンドリング
     }
-    
-    return localEnv[s]!
 }
 
 
@@ -203,7 +194,8 @@ extension Obj: CustomStringConvertible {
             return "\"\(s)\""
         case .bool(let b):
             return b ? "#t" : "#f"
-        case .symbol(let s):
+        case .symbol(var s):
+            s.removeFirst()
             return s
         case .builtin:
             return "(BuiltinFunction)"
@@ -288,15 +280,16 @@ func _unwrapDouble(obj: Obj) -> Double {
 class BuiltinOperatorMaker<T> {
     var unwrap: (Obj) -> T
     var wrap: (T) -> Obj
+
     init(unwrap: @escaping (Obj) -> T, wrap: @escaping (T) -> Obj) {
         self.unwrap = unwrap
         self.wrap = wrap
     }
 
     func makeOperator(_ ope: @escaping (T, T) -> T) -> (SCons) -> Obj {
-        func inner(list: SCons) -> Obj {
-            guard case .cons(let x, let xs) = list else {
-                return _raiseErrorDev(list) // TODO エラーハンドリング
+        func inner(args: SCons) -> Obj {
+            guard case .cons(let x, let xs) = args else {
+                return _raiseErrorDev(args) // TODO エラーハンドリング
             }
             var n = unwrap(x)
             var rest = xs
@@ -317,25 +310,23 @@ let builtinOpeDouble = BuiltinOperatorMaker<Double>(unwrap: _unwrapDouble, wrap:
 
 /// ディスパッチ用クラス
 class DispatchFunction {
-    var forInt: (SCons) -> SInt
-    var forDouble: (SCons) -> SDouble
+    var opeForInt: (SCons) -> SInt
+    var opeForDouble: (SCons) -> SDouble
+
     init(int: @escaping (Int, Int) -> Int, double: @escaping (Double, Double) -> Double) {
-        self.forInt = builtinOpeInt.makeOperator(int)
-        self.forDouble = builtinOpeDouble.makeOperator(double)
+        self.opeForInt = builtinOpeInt.makeOperator(int)
+        self.opeForDouble = builtinOpeDouble.makeOperator(double)
     }
 
     func toSBuiltin() -> SBuiltin {
-        return .builtin { list in
-            guard case .cons(let x, _) = list else {
-                return _raiseErrorDev(list) // TODO エラーハンドリング
-            }
-            switch x {
-            case .int:
-                return self.forInt(list)
-            case .double:
-                return self.forDouble(list)
+        return .builtin { args in
+            switch args {
+            case .cons(.int, _):
+                return self.opeForInt(args)
+            case .cons(.double, _):
+                return self.opeForDouble(args)
             default:
-                return _raiseErrorDev(x) // TODO エラーハンドリング
+                return _raiseErrorDev(args) // TODO エラーハンドリング
             }
         }
     }
@@ -349,11 +340,17 @@ let builtinOperator: [String: SBuiltin] = [
     "'/": DispatchFunction(int: /, double: /).toSBuiltin(),
     "'%": .builtin(builtinOpeInt.makeOperator(%)),
     "'=": .builtin { (obj: SCons) -> SInt in
-        let (x, y) = _take2(list: obj, default: (.null, .null))
-        // TODO いろんな型
-        guard case .int(let n) = x, case .int(let m) = y else { return .bool(false) }
-        
-        return .bool(n == m)
+        let args = _take2(list: obj, default: (.null, .null))
+        switch args {
+        case (.int(let x), .int(let y)):
+            return .bool(x == y)
+        case (.double(let x), .double(let y)):
+            return .bool(x == y)
+        case (.string(let s), .string(let t)):
+            return .bool(s == t)
+        default:
+            return .bool(false)
+        }
     }
 ]
 
@@ -385,7 +382,8 @@ func define(expr: SCons, env: inout Env) -> SNull {
         extendEnv(
             env: &env, 
             symbols: [symbol], 
-            vals: [(["'letrec", [[symbol, val]], symbol] as Obj).eval(env: &env)]
+            vals: [(["'letrec", [[symbol, val]],
+                        symbol] as Obj).eval(env: &env)]
         )
     default:
         return _raiseErrorDev(expr)
@@ -431,7 +429,7 @@ func letrec(expr: SCons, env: inout Env) -> Obj {
     extendEnv(env: &env, symbols: symbols, vals: dummies)
     let vals = valExprs.map { val -> Obj in val.eval(env: &env) }
     for case (.symbol(let s), let val) in zip(symbols, vals) {
-        if case .closure(var _closure) = val {
+        if case .closure(let _closure) = val {
             _closure.env[env.count-1][s] = val
         }
         env[env.count-1][s] = val
@@ -442,7 +440,7 @@ func letrec(expr: SCons, env: inout Env) -> Obj {
 /// 論理式判定
 /// Clojureに則って .null と .bool(false) だけ false
 /// それ以外は true
-func _logicalTest(obj: Obj) -> Bool {
+func _logicalTrue(obj: Obj) -> Bool {
     switch obj {
     case .null:
         return false
@@ -456,8 +454,7 @@ func _logicalTest(obj: Obj) -> Bool {
 /// if式
 func sIf(expr: SCons, env: inout Env) -> Obj {
     let (p, t, f) = _take3(list: expr, default: (.null, .null, .null))
-
-    return _logicalTest(obj: p.eval(env: &env)) ? t.eval(env: &env) : f.eval(env: &env)
+    return _logicalTrue(obj: p.eval(env: &env)) ? t.eval(env: &env) : f.eval(env: &env)
 }
 
 let builtinSpecialForm: [String: SSpecial] = [
@@ -482,9 +479,7 @@ let builtinFunction: [String: SBuiltin] = [
     "'list": .builtin { obj in obj }
 ]
 
-/// グローバル環境
-var globalEnv: Env = [
-    builtinOperator
+/// 組み込み環境
+let BUILTIN_ENV: [String: Obj] = builtinOperator
     .merging(builtinSpecialForm) { (_, new) in new }
     .merging(builtinFunction) { (_, new) in new }
-]
