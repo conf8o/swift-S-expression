@@ -42,17 +42,6 @@ extension SCons {
     }
 }
 
-/// 配列からS式へ変換
-public func S(_ array: [Obj]) -> Obj {
-    var array = array
-    guard let obj = array.popLast() else { return .null }
-    var list = Obj.cons(obj, .null)
-    while let obj = array.popLast() {
-        list = Obj.cons(obj, list)
-    }
-    return list
-}
-
 public extension Obj {
     /// S式の評価
     func eval(env: inout Env) -> Obj {

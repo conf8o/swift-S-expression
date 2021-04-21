@@ -26,6 +26,6 @@ extension Obj: ExpressibleByStringLiteral {
 /// Objのリテラル表記(Array)
 extension Obj: ExpressibleByArrayLiteral {
     public init(arrayLiteral: Obj...) {
-        self = S(arrayLiteral)
+        self = Obj.S(arrayLiteral)
     }
 }
