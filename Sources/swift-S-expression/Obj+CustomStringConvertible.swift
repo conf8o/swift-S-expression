@@ -5,8 +5,8 @@ extension Obj: CustomStringConvertible {
             var _xs = xs.description
             switch xs {
             case .cons:
-                _xs.removeFirst()
                 _xs.removeLast()
+                _xs.removeFirst()
                 _xs = " \(_xs)"
             case .null:
                 break
