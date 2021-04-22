@@ -282,12 +282,12 @@ private let builtinFunction: [String: SBuiltin] = [
     }
 ]
 
-private let builtinValue: [String: Obj] = [
+private let builtinValue: [Obj.Symbol: Obj] = [
     "'else": .bool(true)
 ]
 
 /// 組み込み環境
-public let BUILTIN_ENV: [String: Obj] = builtinOperator
+public let BUILTIN_ENV: [Obj.Symbol: Obj] = builtinOperator
     .merging(builtinSpecialForm) { (_, new) in new }
     .merging(builtinFunction) { (_, new) in new }
     .merging(builtinValue) { (_, new) in new }

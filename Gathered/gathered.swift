@@ -99,11 +99,11 @@ func applySpecialForm(f: SSpecial, args: SCons, env: inout Env) -> Obj {
 //===--- Env.swift ---===//
 
 /// 環境([[変数: オブジェクト]])
-typealias Env = [[String: Obj]]
+typealias Env = [[Obj.Symbol: Obj]]
 
 /// 環境に変数と値を追加する。
 func extendEnv(env: inout Env, symbols: [SSymbol], vals: [Obj])  {
-    var newEnv = [String: Obj]()
+    var newEnv = [Obj.Symbol: Obj]()
     for case (.symbol(let s), let val) in zip(symbols, vals) {
         newEnv[s] = val
     }
@@ -112,7 +112,7 @@ func extendEnv(env: inout Env, symbols: [SSymbol], vals: [Obj])  {
 
 /// 環境に変数と値を追加する。
 func extendEnv(env: inout Env, symbols: SCons, vals: SCons)  {
-    var newEnv = [String: Obj]()
+    var newEnv = [Obj.Symbol: Obj]()
     var _symbols = symbols
     var _vals = vals
     while case .cons(.symbol(let s), let restS) = _symbols,
@@ -634,12 +634,12 @@ let builtinFunction: [String: SBuiltin] = [
     }
 ]
 
-let builtinValue: [String: Obj] = [
+let builtinValue: [Obj.Symbol: Obj] = [
     "'else": .bool(true)
 ]
 
 /// 組み込み環境
-let BUILTIN_ENV: [String: Obj] = builtinOperator
+let BUILTIN_ENV: [Obj.Symbol: Obj] = builtinOperator
     .merging(builtinSpecialForm) { (_, new) in new }
     .merging(builtinFunction) { (_, new) in new }
     .merging(builtinValue) { (_, new) in new }

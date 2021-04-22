@@ -1,9 +1,9 @@
 /// 環境([[変数: オブジェクト]])
-public typealias Env = [[String: Obj]]
+public typealias Env = [[Obj.Symbol: Obj]]
 
 /// 環境に変数と値を追加する。
 public func extendEnv(env: inout Env, symbols: [SSymbol], vals: [Obj])  {
-    var newEnv = [String: Obj]()
+    var newEnv = [Obj.Symbol: Obj]()
     for case (.symbol(let s), let val) in zip(symbols, vals) {
         newEnv[s] = val
     }
@@ -12,7 +12,7 @@ public func extendEnv(env: inout Env, symbols: [SSymbol], vals: [Obj])  {
 
 /// 環境に変数と値を追加する。
 public func extendEnv(env: inout Env, symbols: SCons, vals: SCons)  {
-    var newEnv = [String: Obj]()
+    var newEnv = [Obj.Symbol: Obj]()
     var _symbols = symbols
     var _vals = vals
     while case .cons(.symbol(let s), let restS) = _symbols,
