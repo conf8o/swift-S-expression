@@ -208,12 +208,26 @@ private func sIf(expr: SCons, env: inout Env) -> Obj {
     return _logicalTrue(obj: p.eval(env: &env)) ? t.eval(env: &env) : f.eval(env: &env)
 }
 
+/// cond式
+private func cond(expr: SCons, env: inout Env) -> Obj {
+    var rest = expr
+    while case .cons(.cons(let p, let c), let xs) = rest {
+        if _logicalTrue(obj: p.eval(env: &env)) {
+            return c.eval(env: &env)
+        } else {
+            rest = xs
+        }
+    }
+    return .null
+}
+
 private let builtinSpecialForm: [String: SSpecial] = [
     "'lambda": .special(lambda),
     "'define": .special(define),
-    "'if": .special(sIf),
     "'let": .special(sLet),
-    "'letrec": .special(letrec)
+    "'letrec": .special(letrec),
+    "'if": .special(sIf),
+    "'cond": .special(cond)
 ]
 
 private let builtinFunction: [String: SBuiltin] = [
@@ -227,10 +241,53 @@ private let builtinFunction: [String: SBuiltin] = [
             return .bool(false)
         }
     },
-    "'list": .builtin { obj in obj }
+    "'list": .builtin { obj in obj },
+    "'int": .builtin { obj in 
+        guard case .string(let x) = obj.car() else {
+            return _raiseErrorDev(obj)
+        }
+        return .int(Int(x)!)
+    },
+    "'str": .builtin { obj in 
+        var args = obj
+        var str = ""
+        while case .cons(let x, let xs) = args {
+            str.append(x.description)
+            args = xs
+        }
+        return .string(str)
+    },
+    "'read-line": .builtin { obj in
+        guard case .null = obj else {
+            return _raiseErrorDev(obj)
+        }
+        return .string(readLine()!)
+    },
+    "'read-ints": .builtin { obj in
+        guard case .null = obj else {
+            return _raiseErrorDev(obj)
+        }
+        return Obj.S(readLine()!.split(separator: " ").map { Obj.int(Int($0)!) })
+    },
+    "'print": .builtin { obj in 
+        var args = obj
+        var str = ""
+        while case .cons(let x, let xs) = args {
+            str.append("\(x.description) ")
+            args = xs
+        }
+        str.removeLast()
+        print(str)
+        return .null
+    }
+]
+
+private let builtinValue: [String: Obj] = [
+    "'else": .bool(true)
 ]
 
 /// 組み込み環境
 public let BUILTIN_ENV: [String: Obj] = builtinOperator
     .merging(builtinSpecialForm) { (_, new) in new }
     .merging(builtinFunction) { (_, new) in new }
+    .merging(builtinValue) { (_, new) in new }
