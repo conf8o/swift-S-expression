@@ -1,6 +1,8 @@
 # swift-S-expression
 
-SwiftのArrayをS式と見立てて評価する。(字句解析実装予定)
+SwiftでS式を評価
+
+Swift製Lisp
 
 ## 実行例
 
@@ -8,6 +10,9 @@ SwiftのArrayをS式と見立てて評価する。(字句解析実装予定)
 struct Main {
     var env: Env
     mutating func debug(_ objs: Obj...) {
+        debug(objs)
+    }
+    mutating func debug(_ objs: [Obj]) {
         for (i, obj) in objs.enumerated() {
             print("===--- S:\(i+1) ---===")
             print(obj)
@@ -16,7 +21,11 @@ struct Main {
             print("Result:", res)
         }
     }
+    
     mutating func run(_ objs: Obj...) -> Obj {
+        run(objs)
+    }
+    mutating func run(_ objs: [Obj]) -> Obj {
         var last = Obj.null
         for obj in objs {
             last = obj.eval(env: &env)
@@ -24,57 +33,191 @@ struct Main {
         return last
     }
 }
-var debug = Main(env: [[:]])
 
-debug.debug(
-    ["'+", 1, 2],
-    ["'+", 1.0, 2.0],
-    ["'/", 22.0, 7.0],
+func lexicalAnalysisDebug() {
+    let s = """
+(+ 1 2)
+(+ 1.0 2.0)
+(/ 22.0 7.0)
+((lambda (x y) (+ x y)) 1 2)
+(define x (+ 1 2))
+(if (= 1 2) (+ 10 2) (% 5 2))
+(define f (lambda (x y) (* x y)))
+(f 10 2)
+(let ([x 1]
+      [y 10])
+    (+ x y))
+(define sum 10)
+((lambda (x) (+ x sum)) 100)
+(letrec
+    ([fact
+      (lambda (n)
+        (if (= 1 n)
+            1
+            (* n (fact (- n 1)))))])
+    (fact 5))
+(define fib
+    (lambda (n)
+        (if (= 0 n)
+            0
+            (if (= 1 n))
+                1
+                (+ (fib (- n 1))
+                   (fib (- n 2))))))
+(fib 9)
+((lambda (f x y) (f (+ x y) (* x y)))
+ * 10 5)
 
-    [["'lambda", ["'x", "'y"], ["'+", "'x", "'y"]], 1, 2],
+(define (sum col)
+    (if (null? col)
+        0
+        (+ (car col) (sum (cdr col)))))
+(sum (list 1 2 3 4 5))
+(car (list "a" "b"))
+"""
+    let exprs = try! Obj.read(sExpr: s)
+    print(exprs)
 
-    ["'define", "'x", ["'+", 1, 2]],
+    var debug = Main(env: [[:]])
+    debug.debug(exprs)
+}
 
-    ["'if", ["'=", 1, 2], ["'+", 10, 2], ["'%", 5, 2]],
+```
 
-    ["'define", "'f", ["'lambda", ["'x", "'y"], ["'*", "'x", "'y"]]],
-    ["'f", 10, 2],
+### 結果
+```
+[(+ 1 2), (+ 1.0 2.0), (/ 22.0 7.0), ((lambda (x y) (+ x y)) 1 2), (define x (+ 1 2)), (if (= 1 2) (+ 10 2) (% 5 2)), (define f (lambda (x y) (* x y))), (f 10 2), (let ((x 1) (y 10)) (+ x y)), (define sum 10), ((lambda (x) (+ x sum)) 100), (letrec ((fact (lambda (n) (if (= 1 n) 1 (* n (fact (- n 1))))))) (fact 5)), (define fib (lambda (n) (if (= 0 n) 0 (if (= 1 n)) 1 (+ (fib (- n 1)) (fib (- n 2)))))), (fib 9), ((lambda (f x y) (f (+ x y) (* x y))) * 10 5), (define (sum col) (if (null? col) 0 (+ (car col) (sum (cdr col))))), (sum (list 1 2 3 4 5)), (car (list "a" "b"))]
+===--- S:1 ---===
+(+ 1 2)
+Env: [[:]]
+Result: 3
+===--- S:2 ---===
+(+ 1.0 2.0)
+Env: [[:]]
+Result: 3.0
+===--- S:3 ---===
+(/ 22.0 7.0)
+Env: [[:]]
+Result: 3.142857142857143
+===--- S:4 ---===
+((lambda (x y) (+ x y)) 1 2)
+Env: [[:]]
+Result: 3
+===--- S:5 ---===
+(define x (+ 1 2))
+Env: [["\'x": 3]]
+Result: 
+===--- S:6 ---===
+(if (= 1 2) (+ 10 2) (% 5 2))
+Env: [["\'x": 3]]
+Result: 1
+===--- S:7 ---===
+(define f (lambda (x y) (* x y)))
+Env: [["\'f": (Closure), "\'x": 3]]
+Result: 
+===--- S:8 ---===
+(f 10 2)
+Env: [["\'f": (Closure), "\'x": 3]]
+Result: 20
+===--- S:9 ---===
+(let ((x 1) (y 10)) (+ x y))
+Env: [["\'f": (Closure), "\'x": 3]]
+Result: 11
+===--- S:10 ---===
+(define sum 10)
+Env: [["\'f": (Closure), "\'x": 3, "\'sum": 10]]
+Result: 
+===--- S:11 ---===
+((lambda (x) (+ x sum)) 100)
+Env: [["\'f": (Closure), "\'x": 3, "\'sum": 10]]
+Result: 110
+===--- S:12 ---===
+(letrec ((fact (lambda (n) (if (= 1 n) 1 (* n (fact (- n 1))))))) (fact 5))
+Env: [["\'f": (Closure), "\'x": 3, "\'sum": 10]]
+Result: 120
+===--- S:13 ---===
+(define fib (lambda (n) (if (= 0 n) 0 (if (= 1 n)) 1 (+ (fib (- n 1)) (fib (- n 2))))))
+Env: [["\'x": 3, "\'f": (Closure), "\'sum": 10, "\'fib": (Closure)]]
+Result: 
+===--- S:14 ---===
+(fib 9)
+Env: [["\'x": 3, "\'f": (Closure), "\'sum": 10, "\'fib": (Closure)]]
+Result: 
+===--- S:15 ---===
+((lambda (f x y) (f (+ x y) (* x y))) * 10 5)
+Env: [["\'x": 3, "\'f": (Closure), "\'sum": 10, "\'fib": (Closure)]]
+Result: 750
+===--- S:16 ---===
+(define (sum col) (if (null? col) 0 (+ (car col) (sum (cdr col)))))
+Env: [["\'x": 3, "\'f": (Closure), "\'sum": (Closure), "\'fib": (Closure)]]
+Result: 
+===--- S:17 ---===
+(sum (list 1 2 3 4 5))
+Env: [["\'x": 3, "\'f": (Closure), "\'sum": (Closure), "\'fib": (Closure)]]
+Result: 15
+===--- S:18 ---===
+(car (list "a" "b"))
+Env: [["\'x": 3, "\'f": (Closure), "\'sum": (Closure), "\'fib": (Closure)]]
+Result: "a"
+```
 
-    ["'let", [["'x", 1],
-              ["'y", 10]],
-        ["'+", "'x", "'y"]],
+## 実行例(Arrayバージョン)
 
-    ["'define", "'sum", 10],
-    [["'lambda", ["'x"], ["'+", "'x", "'sum"]], 100],
+```swift
+func sExprDebug() {
+    var debug = Main(env: [[:]])
 
-    ["'letrec", 
-        [["'fact",
-         ["'lambda", ["'n"],
-            ["'if", ["'=", 1, "'n"],
-                1,
-                ["'*", "'n", ["'fact", ["'-", "'n", 1]]]]]]],
-        ["'fact", 5]],
-    
-    ["'define", "'fib",
-        ["'lambda", ["'n"],
-            ["'if", ["'=", 0, "'n"],
-                    0,
-                    ["'if", ["'=", 1, "'n"],
-                        1,
-                        ["'+", ["'fib", ["'-", "'n", 1]],
-                               ["'fib", ["'-", "'n", 2]]]]]]],
-    ["'fib", 9],
+    debug.debug(
+        ["'+", 1, 2],
+        ["'+", 1.0, 2.0],
+        ["'/", 22.0, 7.0],
 
-    [["'lambda", ["'f", "'x", "'y"], ["'f", ["'+", "'x", "'y"], ["'*", "'x", "'y"]]],
-     "'*", 10, 5],
+        [["'lambda", ["'x", "'y"], ["'+", "'x", "'y"]], 1, 2],
 
-     ["'define", ["'sum", "'col"],
-        ["'if", ["'null?", "'col"],
-            0,
-            ["'+", ["'car", "'col"], ["'sum", ["'cdr", "'col"]]]]],
-    ["'sum", ["'list", 1, 2, 3, 4, 5]]
-)
+        ["'define", "'x", ["'+", 1, 2]],
 
+        ["'if", ["'=", 1, 2], ["'+", 10, 2], ["'%", 5, 2]],
+
+        ["'define", "'f", ["'lambda", ["'x", "'y"], ["'*", "'x", "'y"]]],
+        ["'f", 10, 2],
+
+        ["'let", [["'x", 1],
+                  ["'y", 10]],
+            ["'+", "'x", "'y"]],
+
+        ["'define", "'sum", 10],
+        [["'lambda", ["'x"], ["'+", "'x", "'sum"]], 100],
+
+        ["'letrec", 
+            [["'fact",
+             ["'lambda", ["'n"],
+                ["'if", ["'=", 1, "'n"],
+                    1,
+                    ["'*", "'n", ["'fact", ["'-", "'n", 1]]]]]]],
+            ["'fact", 5]],
+
+        ["'define", "'fib",
+            ["'lambda", ["'n"],
+                ["'if", ["'=", 0, "'n"],
+                        0,
+                        ["'if", ["'=", 1, "'n"],
+                            1,
+                            ["'+", ["'fib", ["'-", "'n", 1]],
+                                   ["'fib", ["'-", "'n", 2]]]]]]],
+        ["'fib", 9],
+
+        [["'lambda", ["'f", "'x", "'y"], ["'f", ["'+", "'x", "'y"], ["'*", "'x", "'y"]]],
+         "'*", 10, 5],
+
+         ["'define", ["'sum", "'col"],
+            ["'if", ["'null?", "'col"],
+                0,
+                ["'+", ["'car", "'col"], ["'sum", ["'cdr", "'col"]]]]],
+        ["'sum", ["'list", 1, 2, 3, 4, 5]]
+    )
+}
+
+sExprDebug()
 ```
 
 ### 結果
@@ -118,96 +261,38 @@ Env: [["\'f": (Closure), "\'x": 3]]
 Result: 11
 ===--- S:10 ---===
 (define sum 10)
-Env: [["\'sum": 10, "\'f": (Closure), "\'x": 3]]
+Env: [["\'f": (Closure), "\'x": 3, "\'sum": 10]]
 Result: 
 ===--- S:11 ---===
 ((lambda (x) (+ x sum)) 100)
-Env: [["\'sum": 10, "\'f": (Closure), "\'x": 3]]
+Env: [["\'f": (Closure), "\'x": 3, "\'sum": 10]]
 Result: 110
 ===--- S:12 ---===
 (letrec ((fact (lambda (n) (if (= 1 n) 1 (* n (fact (- n 1))))))) (fact 5))
-Env: [["\'sum": 10, "\'f": (Closure), "\'x": 3]]
+Env: [["\'f": (Closure), "\'x": 3, "\'sum": 10]]
 Result: 120
 ===--- S:13 ---===
 (define fib (lambda (n) (if (= 0 n) 0 (if (= 1 n) 1 (+ (fib (- n 1)) (fib (- n 2)))))))
-Env: [["\'x": 3, "\'f": (Closure), "\'fib": (Closure), "\'sum": 10]]
+Env: [["\'fib": (Closure), "\'sum": 10, "\'f": (Closure), "\'x": 3]]
 Result: 
 ===--- S:14 ---===
 (fib 9)
-Env: [["\'x": 3, "\'f": (Closure), "\'fib": (Closure), "\'sum": 10]]
+Env: [["\'fib": (Closure), "\'sum": 10, "\'f": (Closure), "\'x": 3]]
 Result: 34
 ===--- S:15 ---===
 ((lambda (f x y) (f (+ x y) (* x y))) * 10 5)
-Env: [["\'x": 3, "\'f": (Closure), "\'fib": (Closure), "\'sum": 10]]
+Env: [["\'fib": (Closure), "\'sum": 10, "\'f": (Closure), "\'x": 3]]
 Result: 750
 ===--- S:16 ---===
 (define (sum col) (if (null? col) 0 (+ (car col) (sum (cdr col)))))
-Env: [["\'x": 3, "\'f": (Closure), "\'fib": (Closure), "\'sum": (Closure)]]
+Env: [["\'fib": (Closure), "\'sum": (Closure), "\'f": (Closure), "\'x": 3]]
 Result: 
 ===--- S:17 ---===
 (sum (list 1 2 3 4 5))
-Env: [["\'x": 3, "\'f": (Closure), "\'fib": (Closure), "\'sum": (Closure)]]
+Env: [["\'fib": (Closure), "\'sum": (Closure), "\'f": (Closure), "\'x": 3]]
 Result: 15
 ```
 
+## 組み込み関数一覧
 
-## 中身の紹介
-
-列挙型`Obj`にS式で使える型を定義し、リテラルからインスタンスを生成できるプロトコルを`Obj`に実装することにより、イイ感じにS式を記述できる。
-
-atomを示す型は定義していない。
-
-```swift
-public enum Obj {
-    public typealias Symbol = String
-    case int(Int)
-    case double(Double)
-    case string(String)
-    case bool(Bool)
-    case symbol(Symbol)
-    case builtin((Obj) -> Obj)
-    case closure(Closure)
-    case special((Obj, inout Env) -> Obj)
-    case null
-    indirect case cons(Obj, Obj)
-}
-```
-
-```swift
-/// 環境([[変数: オブジェクト]])
-public typealias Env = [[String: Obj]]
-```
-
-```swift
-/// Objのリテラル表記(Int)
-extension Obj: ExpressibleByIntegerLiteral {
-    public init(integerLiteral: Int) {
-        self = .int(integerLiteral)
-    }
-}
-
-/// Objのリテラル表記(Double)
-extension Obj: ExpressibleByFloatLiteral {
-    public init(floatLiteral: Double) {
-        self = .double(floatLiteral)
-    }
-}
-
-/// Objのリテラル表記(String, Symbol)
-extension Obj: ExpressibleByStringLiteral {
-    public init(stringLiteral: String) {
-        if let quote = stringLiteral.first, quote == "'" {
-            self = .symbol(stringLiteral)
-        } else {
-            self = .string(stringLiteral)
-        }
-    }
-}
-
-/// Objのリテラル表記(Array)
-extension Obj: ExpressibleByArrayLiteral {
-    public init(arrayLiteral: Obj...) {
-        self = S(arrayLiteral)
-    }
-}
-```
+TODO
