@@ -44,17 +44,6 @@ extension SCons {
     }
 }
 
-/// 配列からS式へ変換
-func S(_ array: [Obj]) -> Obj {
-    var array = array
-    guard let obj = array.popLast() else { return .null }
-    var list = Obj.cons(obj, .null)
-    while let obj = array.popLast() {
-        list = Obj.cons(obj, list)
-    }
-    return list
-}
-
 extension Obj {
     /// S式の評価
     func eval(env: inout Env) -> Obj {
@@ -102,7 +91,7 @@ func applyClosure(f: SClosure, args: SCons) -> Obj {
 
 /// 特殊形式の適用
 func applySpecialForm(f: SSpecial, args: SCons, env: inout Env) -> Obj {
-    guard case .special(let _f) = f else { return _raiseErrorDev(m, args) /* TODO エラーハンドリング */ }
+    guard case .special(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
     return _f(args, &env)
 }
 
@@ -174,14 +163,14 @@ class Closure {
 //===--- Obj+CustomStringConvertible.swift ---===//
 
 extension Obj: CustomStringConvertible {
-    public var description: String {
+    var description: String {
         switch self {
         case .cons(let x, let xs):
             var _xs = xs.description
             switch xs {
             case .cons:
-                _xs.removeFirst()
                 _xs.removeLast()
+                _xs.removeFirst()
                 _xs = " \(_xs)"
             case .null:
                 break
@@ -211,6 +200,114 @@ extension Obj: CustomStringConvertible {
         }
     }
 }
+
+//===--- Obj+LexicalAnalysis.swift ---===//
+
+import Foundation 
+
+extension Obj {
+    static func S(_ array: [Obj]) -> Obj {
+        var array = array
+        guard let obj = array.popLast() else { return .null }
+        var list = Obj.cons(obj, .null)
+        while let obj = array.popLast() {
+            list = Obj.cons(obj, list)
+        }
+        return list
+    }
+}
+
+extension Obj {
+    enum Token {
+        case pOpen, pClose, textBlock(String)
+    }
+}
+
+extension Array where Element == Obj.Token {
+    mutating func absorbText(_ textBuffer: inout String) {
+        if textBuffer != "" {
+            self.append(.textBlock(textBuffer))
+            textBuffer = ""
+        }
+    }
+}
+
+extension Obj {
+    static func tokenize(_ sExpr: String) -> [Token] {
+        var tokens = [Token]()
+        var textBuffer = ""
+
+        for c in sExpr {
+            switch c {
+            case "(", "[":
+                tokens.absorbText(&textBuffer)
+                tokens.append(.pOpen)
+            case ")", "]":
+                tokens.absorbText(&textBuffer)
+                tokens.append(.pClose)
+            case let c where c.isWhitespace || c.isNewline:
+                tokens.absorbText(&textBuffer)
+            default:
+                textBuffer.append(c)
+            }
+        }
+        return tokens
+    }
+
+    static func read(sExpr: String) throws -> [Obj] {
+        let tokens = tokenize(sExpr)
+        var stack: [[Obj]] = [[]]
+        for token in tokens {
+            switch token {
+            case .pOpen:
+                stack.append([])
+            case .pClose:
+                guard let p = stack.popLast(), stack.count > 0 else {
+                    throw LexicalAnalysisError.extraCloseParenthesis
+                }
+                stack[stack.count-1].append(Obj.S(p))
+            case .textBlock(let text):
+                // to int
+                if let int = Int(text) {
+                    stack[stack.count-1].append(Obj.int(int))
+                }
+                // to double
+                else if let double = Double(text) {
+                    stack[stack.count-1].append(Obj.double(double))
+                }
+                // to string
+                else if let f = text.first, let l = text.last, f == "\"", l == "\"" {
+                    var string = text
+                    string.removeLast()
+                    string.removeFirst()
+                    stack[stack.count-1].append(Obj.string(string))
+                }
+                //to bool(true)
+                else if text == "#t" {
+                    stack[stack.count-1].append(Obj.bool(true))
+                }
+                // to bool(false)
+                else if text == "#f" {
+                    stack[stack.count-1].append(Obj.bool(false))
+                }
+                // to symbol
+                else {
+                    stack[stack.count-1].append(Obj.symbol("'" + text))
+                }
+            }
+        }
+        guard stack.count == 1 else {
+            throw LexicalAnalysisError.notClosedParenthesis
+        }
+        return stack[0]
+    }
+}
+
+enum LexicalAnalysisError: Error {
+    case extraCloseParenthesis
+    case notClosedParenthesis
+}
+
 
 //===--- Obj+Literal.swift ---===//
 
@@ -242,7 +339,7 @@ extension Obj: ExpressibleByStringLiteral {
 /// Objのリテラル表記(Array)
 extension Obj: ExpressibleByArrayLiteral {
     init(arrayLiteral: Obj...) {
-        self = S(arrayLiteral)
+        self = Obj.S(arrayLiteral)
     }
 }
 

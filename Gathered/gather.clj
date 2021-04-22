@@ -2,7 +2,7 @@
          '[clojure.java.io :as io])
 
 (defn remove-modifier [s]
-  (string/replace s #"(public|private) " ""))
+  (string/replace s #"(public|private|fileprivate) " ""))
 
 (def base (io/file "../Sources/swift-S-expression"))
 
