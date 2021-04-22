@@ -19,11 +19,10 @@ extension Obj: CustomStringConvertible {
         case .double(let d):
             return d.description
         case .string(let s):
-            return "\"\(s)\""
+            return s
         case .bool(let b):
             return b ? "#t" : "#f"
-        case .symbol(var s):
-            s.removeFirst()
+        case .symbol(let s):
             return s
         case .builtin:
             return "(BuiltinFunction)"

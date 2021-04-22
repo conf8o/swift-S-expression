@@ -12,6 +12,13 @@ extension Obj: ExpressibleByFloatLiteral {
     }
 }
 
+/// Objのリテラル表記(Bool)
+extension Obj: ExpressibleByBooleanLiteral {
+    public init(booleanLiteral: Bool) {
+        self = .bool(booleanLiteral)
+    }
+}
+
 /// Objのリテラル表記(String, Symbol)
 extension Obj: ExpressibleByStringLiteral {
     public init(stringLiteral: String) {
