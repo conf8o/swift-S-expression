@@ -203,8 +203,6 @@ extension Obj: CustomStringConvertible {
 
 //===--- Obj+LexicalAnalysis.swift ---===//
 
-import Foundation 
-
 extension Obj {
     static func S(_ array: [Obj]) -> Obj {
         var array = array
