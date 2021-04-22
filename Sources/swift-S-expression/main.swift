@@ -119,7 +119,7 @@ func lexicalAnalysisDebug() {
         (+ (car col) (sum (cdr col)))))
 (sum (list 1 2 3 4 5))
 (car (list "a" "b"))
-(str 2.2 1 "a")
+(str 2.2 1 "a b")
 (cond
     [(= x 2) (* 1 2)]
     [(= x 3) (* 2 3)])
