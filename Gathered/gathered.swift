@@ -649,6 +649,12 @@ let builtinFunction: [String: SBuiltin] = [
         }
         return .string(str)
     },
+    "'string->list": .builtin { obj in 
+        guard case .string(let s) = obj.car() else {
+            return _raiseErrorDev(obj)
+        }
+        return Obj.S(s.map { .string(String($0)) })
+    },
     "'read-line": .builtin { obj in
         guard case .null = obj else {
             return _raiseErrorDev(obj)

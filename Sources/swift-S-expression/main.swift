@@ -130,6 +130,7 @@ func lexicalAnalysisDebug() {
 (<= 1 1)
 (> 1 0)
 (>= 1 1)
+(string->list "abcde")
 """
     let exprs = try! Obj.read(sExpr: s)
     print(exprs)
