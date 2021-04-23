@@ -635,7 +635,7 @@ let builtinFunction: [String: SBuiltin] = [
     },
     "'list": .builtin { obj in obj },
     "'int": .builtin { obj in 
-        guard case .int(let x) = obj.car() else {
+        guard case .string(let x) = obj.car() else {
             return _raiseErrorDev(obj)
         }
         return .int(Int(x)!)
