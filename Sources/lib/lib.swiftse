@@ -1,0 +1,12 @@
+; TODO 標準ライブラリの組み込み
+
+(define (map f col)
+  (if (null? col)
+    ()
+    (cons (f (car col)) (map f (cdr col)))))
+
+(define (every p col)
+  (cond
+    [(null? col) #t]
+    [(p (car a)) (every p (cdr col))]
+    [else #f]))
