@@ -19,7 +19,6 @@ private func _take3(list: SCons, default obj: (Obj, Obj, Obj))-> (Obj, Obj, Obj)
     return (x, y, z)
 }
 
-/// ObjのIntをアンラップ
 private func _unwrapInt(obj: Obj) -> Int {
     guard case .int(let n) = obj else {
         return _raiseErrorDev(obj)
@@ -27,7 +26,6 @@ private func _unwrapInt(obj: Obj) -> Int {
     return n
 }
 
-/// ObjのDoubleをアンラップ
 private func _unwrapDouble(obj: Obj) -> Double {
     guard case .double(let n) = obj else {
         return _raiseErrorDev(obj)
@@ -35,8 +33,15 @@ private func _unwrapDouble(obj: Obj) -> Double {
     return n
 }
 
-/// 組み込み演算子メーカー
-private class BuiltinOperatorMaker<T> {
+private func _unwrapString(obj: Obj) -> String {
+    guard case .string(let s) = obj else {
+        return _raiseErrorDev(obj)
+    }
+    return s
+}
+
+/// 閉じている演算子メーカー
+private class ClosedOperatorMaker<T> {
     var unwrap: (Obj) -> T
     var wrap: (T) -> Obj
 
@@ -64,17 +69,16 @@ private class BuiltinOperatorMaker<T> {
     }
 }
 
-private let builtinOpeInt = BuiltinOperatorMaker<Int>(unwrap: _unwrapInt, wrap: Obj.int)
-private let builtinOpeDouble = BuiltinOperatorMaker<Double>(unwrap: _unwrapDouble, wrap: Obj.double)
+private let intClosedOpe = ClosedOperatorMaker<Int>(unwrap: _unwrapInt, wrap: Obj.int)
+private let doubleClosedOpe = ClosedOperatorMaker<Double>(unwrap: _unwrapDouble, wrap: Obj.double)
 
-/// ディスパッチ用クラス
-private class DispatchFunction {
+private class DispatchClosedOperator {
     var opeForInt: (SCons) -> SInt
     var opeForDouble: (SCons) -> SDouble
 
     init(int: @escaping (Int, Int) -> Int, double: @escaping (Double, Double) -> Double) {
-        self.opeForInt = builtinOpeInt.makeOperator(int)
-        self.opeForDouble = builtinOpeDouble.makeOperator(double)
+        self.opeForInt = intClosedOpe.makeOperator(int)
+        self.opeForDouble = doubleClosedOpe.makeOperator(double)
     }
 
     func toSBuiltin() -> SBuiltin {
@@ -91,26 +95,67 @@ private class DispatchFunction {
     }
 }
 
-/// 組み込み演算子
-private let builtinOperator: [String: SBuiltin] = [
-    "'+": DispatchFunction(int: +, double: +).toSBuiltin(),
-    "'-": DispatchFunction(int: -, double: -).toSBuiltin(),
-    "'*": DispatchFunction(int: *, double: *).toSBuiltin(),
-    "'/": DispatchFunction(int: /, double: /).toSBuiltin(),
-    "'%": .builtin(builtinOpeInt.makeOperator(%)),
-    "'=": .builtin { (obj: SCons) -> SInt in
-        let args = _take2(list: obj, default: (.null, .null))
-        switch args {
-        case (.int(let x), .int(let y)):
-            return .bool(x == y)
-        case (.double(let x), .double(let y)):
-            return .bool(x == y)
-        case (.string(let s), .string(let t)):
-            return .bool(s == t)
-        default:
-            return .bool(false)
+// 比較演算子メーカー
+private class ComparisonOperatorMaker<T> {
+    var unwrap: (Obj) -> T
+    init(unwrap: @escaping (Obj) -> T) {
+        self.unwrap = unwrap
+    }
+
+    func makeOperator(_ ope: @escaping (T, T) -> Bool) -> (SCons) -> SBool {
+        func inner(args: SCons) -> SBool {
+            let (x, y) = _take2(list: args, default: (.null, .null))
+            return .bool(ope(unwrap(x), unwrap(y)))
+        }
+        return inner
+    }
+}
+
+private let intCompOpe = ComparisonOperatorMaker<Int>(unwrap: _unwrapInt)
+private let doubleCompOpe = ComparisonOperatorMaker<Double>(unwrap: _unwrapDouble)
+private let stringCompOpe = ComparisonOperatorMaker<String>(unwrap: _unwrapString)
+
+private class DispatchComparisonOperator {
+    var opeForInt: (SCons) -> SBool
+    var opeForDouble: (SCons) -> SBool
+    var opeForString: (SCons) -> SBool
+
+    init(int: @escaping (Int, Int) -> Bool,
+         double: @escaping (Double, Double) -> Bool,
+         string: @escaping (String, String) -> Bool) {
+        self.opeForInt = intCompOpe.makeOperator(int)
+        self.opeForDouble = doubleCompOpe.makeOperator(double)
+        self.opeForString = stringCompOpe.makeOperator(string)
+    }
+
+    func toSBuiltin() -> SBuiltin {
+        return .builtin { args in
+            switch args {
+            case .cons(.int, _):
+                return self.opeForInt(args)
+            case .cons(.double, _):
+                return self.opeForDouble(args)
+            case .cons(.string, _):
+                return self.opeForString(args)
+            default:
+                return _raiseErrorDev(args) // TODO エラーハンドリング
+            }
         }
     }
+}
+
+/// 組み込み演算子
+private let builtinOperator: [String: SBuiltin] = [
+    "'+": DispatchClosedOperator(int: +, double: +).toSBuiltin(),
+    "'-": DispatchClosedOperator(int: -, double: -).toSBuiltin(),
+    "'*": DispatchClosedOperator(int: *, double: *).toSBuiltin(),
+    "'/": DispatchClosedOperator(int: /, double: /).toSBuiltin(),
+    "'%": .builtin(intClosedOpe.makeOperator(%)),
+    "'=": DispatchComparisonOperator(int: ==, double: ==, string: ==).toSBuiltin(),
+    "'<": DispatchComparisonOperator(int: <, double: <, string: <).toSBuiltin(),
+    "'<=": DispatchComparisonOperator(int: <=, double: <=, string: <=).toSBuiltin(),
+    "'>": DispatchComparisonOperator(int: >, double: >, string: >).toSBuiltin(),
+    "'>=": DispatchComparisonOperator(int: >=, double: >=, string: >=).toSBuiltin()
 ]
 
 /// lambda式

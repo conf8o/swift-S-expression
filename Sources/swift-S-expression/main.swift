@@ -126,6 +126,10 @@ func lexicalAnalysisDebug() {
 (cond
     [#f (* 1 2)]
     [else (* 2 3)])
+(< 1 1)
+(<= 1 1)
+(> 1 0)
+(>= 1 1)
 """
     let exprs = try! Obj.read(sExpr: s)
     print(exprs)
