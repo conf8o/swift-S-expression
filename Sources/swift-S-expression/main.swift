@@ -132,7 +132,7 @@ func lexicalAnalysisDebug() {
 (>= 1 1)
 (string->list "abcde")
 """
-    let exprs = try! Obj.read(sExpr: s)
+    let exprs = try! Obj.load(sExpr: s)
     print(exprs)
 
     var debug = Main(env: [[:]])

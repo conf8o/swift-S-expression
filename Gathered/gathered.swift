@@ -256,7 +256,7 @@ extension Obj {
     }
 
 
-    static func read(sExpr: String) throws -> [Obj] {
+    static func load(sExpr: String) throws -> [Obj] {
         let tokens = tokenize(sExpr)
         var stack: [[Obj]] = [[]]
         for token in tokens {
