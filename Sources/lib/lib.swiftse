@@ -10,3 +10,23 @@
     [(null? col) #t]
     [(p (car a)) (every p (cdr col))]
     [else #f]))
+
+(define (concat col1 x col2)
+  (if (null? col1)
+    (cons x col2)
+    (cons (car col1) (concat (cdr col1) x col2))))
+ 
+(define (grouped key col pivot less greater)
+  (if (null? col)
+    (key less greater)
+    (let [(x (car col))]
+      (if (> pivot x)
+        (grouped key (cdr col) pivot (cons x less) greater)
+        (grouped key (cdr col) pivot less (cons x greater))))))
+ 
+(define (quick-sort col key)
+  (if (null? col)
+    ()
+    (let ([pivot (car col)])
+      (let ([group (grouped key (cdr col) pivot () ())])
+        (concat (quick-sort (car group) key) pivot (quick-sort (cdr group) key))))))
