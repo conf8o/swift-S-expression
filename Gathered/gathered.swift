@@ -14,19 +14,21 @@ enum Obj {
     case special((Obj, inout Env) -> Obj)
     case null
     indirect case cons(Obj, Obj)
+    case vector(Vector)
 }
 
 // 申し訳程度の型ヒント
-typealias SInt = Obj      // .null | .int
-typealias SDouble = Obj   // .null | .double
-typealias SString = Obj   // .null | .string  
-typealias SSymbol = Obj   // .null | .symbol
-typealias SBool = Obj     // .null | .bool 
-typealias SBuiltin = Obj  // .null | .builtin
-typealias SClosure = Obj  // .null | .closure
-typealias SSpecial = Obj  // .null | .special
-typealias SNull = Obj     // .null
-typealias SCons = Obj     // .null | .cons
+typealias SInt = Obj        // .null | .int
+typealias SDouble = Obj     // .null | .double
+typealias SString = Obj     // .null | .string  
+typealias SSymbol = Obj     // .null | .symbol
+typealias SBool = Obj       // .null | .bool 
+typealias SBuiltin = Obj    // .null | .builtin
+typealias SClosure = Obj    // .null | .closure
+typealias SSpecial = Obj    // .null | .special
+typealias SNull = Obj       // .null
+typealias SCons = Obj       // .null | .cons
+typealias SVector = Obj     // .null | .vector
 
 extension SCons {
     func car() -> Obj {
@@ -188,6 +190,8 @@ extension Obj: CustomStringConvertible {
             return b ? "#t" : "#f"
         case .symbol(let s):
             return s
+        case .vector(let v):
+            return v.description
         case .builtin:
             return "(BuiltinFunction)"
         case .closure:
@@ -339,6 +343,43 @@ extension Obj: ExpressibleByStringLiteral {
 extension Obj: ExpressibleByArrayLiteral {
     init(arrayLiteral: Obj...) {
         self = Obj.S(arrayLiteral)
+    }
+}
+
+// 配列(Vector)のリテラル表記は無し
+
+
+//===--- Vector.swift ---===//
+
+class Vector {
+    var buffer: [Obj]
+
+    init(_ list: SCons) {
+        self.buffer = []
+        var rest = list
+        while case .cons(let x, let xs) = rest {
+            buffer.append(x)
+            rest = xs
+        }
+    }
+    init(_ array: [Obj]) {
+        self.buffer = array
+    }
+
+    subscript(i: Int) -> Obj {
+        get {
+            return buffer[i]
+        }
+
+        set(obj) {
+            buffer[i] = obj
+        }
+    }
+}
+
+extension Vector: CustomStringConvertible {
+    var description: String {
+        return self.buffer.description
     }
 }
 
@@ -677,6 +718,30 @@ let builtinFunction: [String: SBuiltin] = [
         str.removeLast()
         print(str)
         return .null
+    },
+    "'make-vector": .builtin { obj in
+        guard case .int(let n) = obj.car() else {
+            return _raiseErrorDev(obj)
+        }
+        let buffer = [Obj](repeating: .null, count: n)
+        return .vector(Vector(buffer))
+    },
+    "'vec": .builtin { obj in
+        guard case let list = obj.car(), case .cons = list else {
+            return _raiseErrorDev(obj)
+        }
+        return .vector(Vector(list))
+    },
+    "'~": .builtin { obj in
+        switch obj {
+        case .cons(.vector(let vec), .cons(.int(let i), .null)):
+            return vec[i]
+        case .cons(.vector(let vec), .cons(.int(let i), .cons(let element, .null))):
+            vec[i] = element
+            return .null
+        default:
+            return _raiseErrorDev(obj)
+        }
     }
 ]
 
