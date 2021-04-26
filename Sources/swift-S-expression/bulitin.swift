@@ -330,6 +330,30 @@ private let builtinFunction: [String: SBuiltin] = [
         str.removeLast()
         print(str)
         return .null
+    },
+    "'make-vector": .builtin { obj in
+        guard case .int(let n) = obj.car() else {
+            return _raiseErrorDev(obj)
+        }
+        let buffer = [Obj](repeating: .null, count: n)
+        return .vector(Vector(buffer))
+    },
+    "'vec": .builtin { obj in
+        guard case let list = obj.car(), case .cons = list else {
+            return _raiseErrorDev(obj)
+        }
+        return .vector(Vector(list))
+    },
+    "'~": .builtin { obj in
+        switch obj {
+        case .cons(.vector(let vec), .cons(.int(let i), .null)):
+            return vec[i]
+        case .cons(.vector(let vec), .cons(.int(let i), .cons(let element, .null))):
+            vec[i] = element
+            return .null
+        default:
+            return _raiseErrorDev(obj)
+        }
     }
 ]
 

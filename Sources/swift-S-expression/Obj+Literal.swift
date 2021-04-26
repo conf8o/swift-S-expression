@@ -36,3 +36,5 @@ extension Obj: ExpressibleByArrayLiteral {
         self = Obj.S(arrayLiteral)
     }
 }
+
+// 配列(Vector)のリテラル表記は無し

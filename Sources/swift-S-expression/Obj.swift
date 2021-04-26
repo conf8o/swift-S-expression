@@ -12,19 +12,21 @@ public enum Obj {
     case special((Obj, inout Env) -> Obj)
     case null
     indirect case cons(Obj, Obj)
+    case vector(Vector)
 }
 
 // 申し訳程度の型ヒント
-public typealias SInt = Obj      // .null | .int
-public typealias SDouble = Obj   // .null | .double
-public typealias SString = Obj   // .null | .string  
-public typealias SSymbol = Obj   // .null | .symbol
-public typealias SBool = Obj     // .null | .bool 
-public typealias SBuiltin = Obj  // .null | .builtin
-public typealias SClosure = Obj  // .null | .closure
-public typealias SSpecial = Obj  // .null | .special
-public typealias SNull = Obj     // .null
-public typealias SCons = Obj     // .null | .cons
+public typealias SInt = Obj        // .null | .int
+public typealias SDouble = Obj     // .null | .double
+public typealias SString = Obj     // .null | .string  
+public typealias SSymbol = Obj     // .null | .symbol
+public typealias SBool = Obj       // .null | .bool 
+public typealias SBuiltin = Obj    // .null | .builtin
+public typealias SClosure = Obj    // .null | .closure
+public typealias SSpecial = Obj    // .null | .special
+public typealias SNull = Obj       // .null
+public typealias SCons = Obj       // .null | .cons
+public typealias SVector = Obj     // .null | .vector
 
 extension SCons {
     func car() -> Obj {

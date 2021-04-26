@@ -24,6 +24,8 @@ extension Obj: CustomStringConvertible {
             return b ? "#t" : "#f"
         case .symbol(let s):
             return s
+        case .vector(let v):
+            return v.description
         case .builtin:
             return "(BuiltinFunction)"
         case .closure:

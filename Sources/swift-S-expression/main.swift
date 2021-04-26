@@ -131,6 +131,11 @@ func lexicalAnalysisDebug() {
 (> 1 0)
 (>= 1 1)
 (string->list "abcde")
+(define v (make-vector 3))
+(~ v 2 100)
+(~ v 2)
+(~ v 1 50)
+(print v)
 """
     let exprs = try! Obj.load(sExpr: s)
     print(exprs)
