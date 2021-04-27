@@ -49,7 +49,7 @@ public extension Obj {
     func eval(env: inout Env) -> Obj {
         switch self {
         case .symbol:
-            return lookupVar(symbol: self, env: env)
+            return env[self]
         case .cons(let x, let xs):
             let _x = x.eval(env: &env)
             switch _x {

@@ -1,6 +1,6 @@
 public class Closure {
-    var params: SCons
-    var body: Obj
+    let params: SCons
+    let body: Obj
     var env: Env
     
     init(params: SCons, body: Obj, env: Env) {
@@ -11,7 +11,7 @@ public class Closure {
 
     func apply(_ args: SCons) -> Obj {
         var env = self.env
-        extendEnv(env: &env, symbols: params, vals: args)
+        env.extend(symbols: params, vals: args)
         let r = body.eval(env: &env)
         env.pop()
         return r

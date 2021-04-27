@@ -192,7 +192,6 @@ private func define(expr: SCons, env: inout Env) -> SNull {
 /// let式
 private func sLet(expr: SCons, env: inout Env) -> Obj {
     var (bindings, body) = _take2(list: expr, default: (.null, .null))
-    var env = env
 
     var symbols = [Obj]()
     var vals = [Obj]()
@@ -204,7 +203,7 @@ private func sLet(expr: SCons, env: inout Env) -> Obj {
             vals.append(val.eval(env: &env))
             bindings = rest
     }
-    extendEnv(env: &env, symbols: symbols, vals: vals)
+    env.extend(symbols: symbols, vals: vals)
     let ret = body.eval(env: &env)
     env.pop()
     return ret
@@ -212,7 +211,6 @@ private func sLet(expr: SCons, env: inout Env) -> Obj {
 
 private func letrec(expr: SCons, env: inout Env) -> Obj {
     var (bindings, body) = _take2(list: expr, default: (.null, .null))
-    var env = env
 
     var symbols = [SSymbol]()
     var valExprs = [Obj]()
@@ -226,7 +224,7 @@ private func letrec(expr: SCons, env: inout Env) -> Obj {
             dummies.append(.null)
             bindings = rest
     }
-    extendEnv(env: &env, symbols: symbols, vals: dummies)
+    env.extend(symbols: symbols, vals: dummies)
     let vals = valExprs.map { val -> Obj in val.eval(env: &env) }
     for case (.symbol(let s), let val) in zip(symbols, vals) {
         if case .closure(let _closure) = val {

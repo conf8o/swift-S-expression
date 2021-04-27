@@ -105,10 +105,10 @@ func lexicalAnalysisDebug() {
     (lambda (n)
         (if (= 0 n)
             0
-            (if (= 1 n))
+            (if (= 1 n)
                 1
                 (+ (fib (- n 1))
-                   (fib (- n 2))))))
+                   (fib (- n 2)))))))
 (fib 9)
 ((lambda (f x y) (f (+ x y) (* x y)))
  * 10 5)
@@ -137,9 +137,10 @@ func lexicalAnalysisDebug() {
 (~ v 1 50)
 (print v)
 (define (loop1 i)
-  (if (= i 10)
+  (if (= i 1000)
     "done"
     (loop1 (+ i 1))))
+(loop1 0)
 (define (loop2 i s)
   (if (= i 10)
     s
