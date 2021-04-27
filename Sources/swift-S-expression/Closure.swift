@@ -12,6 +12,8 @@ public class Closure {
     func apply(_ args: SCons) -> Obj {
         var env = self.env
         extendEnv(env: &env, symbols: params, vals: args)
-        return body.eval(env: &env)
+        let r = body.eval(env: &env)
+        env.pop()
+        return r
     }
 }

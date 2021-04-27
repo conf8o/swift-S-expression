@@ -1,5 +1,35 @@
-/// 環境([[変数: オブジェクト]])
-public typealias Env = [[Obj.Symbol: Obj]]
+/// 環境
+public class Env {
+    var stack: [[Obj.Symbol: Obj]]
+    var count: Int { stack.count }
+
+    init() {
+        self.stack = [[:]]
+    }
+
+    subscript(i: Int, symbol: Obj.Symbol) -> Obj? {
+        get {
+            return stack[i][symbol]
+        }
+        set(obj) {
+            stack[i][symbol] = obj
+        }
+    }
+
+    func append(_ env: [Obj.Symbol: Obj]) {
+        stack.append(env)
+    }
+
+    func pop() {
+        stack.removeLast()
+    }
+}
+
+extension Env: CustomStringConvertible {
+    public var description: String {
+        stack.description
+    }
+}
 
 /// 環境に変数と値を追加する。
 public func extendEnv(env: inout Env, symbols: [SSymbol], vals: [Obj])  {
@@ -29,7 +59,7 @@ public func lookupVar(symbol: SSymbol, env: Env) -> Obj {
     guard case .symbol(let s) = symbol else {
         return _raiseErrorDev(symbol) // TODO エラーハンドリング
     }
-    if let localEnv = (env.last { $0[s] != nil }) {
+    if let localEnv = (env.stack.last { $0[s] != nil }) {
         return localEnv[s]!
     } else if let v = BUILTIN_ENV[s] {
         return v
