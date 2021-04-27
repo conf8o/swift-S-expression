@@ -136,8 +136,18 @@ func lexicalAnalysisDebug() {
 (~ v 2)
 (~ v 1 50)
 (print v)
+(define (loop1 i)
+  (if (= i 10)
+    "done"
+    (loop1 (+ i 1))))
+(define (loop2 i s)
+  (if (= i 10)
+    s
+    (let ([a (loop1 0)])
+      (loop2 (+ i 1) a))))
+(loop2 0)
 """
-    let exprs = try! Obj.load(sExpr: s)
+    let exprs = try! Obj.read(sExpr: s)
     print(exprs)
 
     var debug = Main(env: [[:]])

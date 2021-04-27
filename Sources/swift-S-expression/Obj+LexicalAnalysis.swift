@@ -52,7 +52,7 @@ extension Obj {
     }
 
 
-    public static func load(sExpr: String) throws -> [Obj] {
+    public static func read(sExpr: String) throws -> [Obj] {
         let tokens = tokenize(sExpr)
         var stack: [[Obj]] = [[]]
         for token in tokens {
