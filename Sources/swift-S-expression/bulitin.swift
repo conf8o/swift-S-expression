@@ -1,3 +1,5 @@
+import Foundation
+
 // 戻り値の型が生っぽい関数などには先頭にアンダースコアをつける。
 
 /// 開発用の簡易クラッシャー
@@ -174,12 +176,12 @@ private func define(expr: SCons, env: inout Env) -> SNull {
     switch expr {
     // (define (f args) body)
     case .cons(.cons(.symbol(let symbol), let args), .cons(let body, .null)):
-        env[env.count-1][symbol] = (["'letrec", [[.symbol(symbol), ["'lambda", args, body]]],
+        env[env.count-1, symbol] = (["'letrec", [[.symbol(symbol), ["'lambda", args, body]]],
                                         .symbol(symbol)] as Obj).eval(env: &env)
 
     // (define f val)
     case .cons(.symbol(let symbol), .cons(let val, .null)):
-        env[env.count-1][symbol] = (["'letrec", [[.symbol(symbol), val]],
+        env[env.count-1, symbol] = (["'letrec", [[.symbol(symbol), val]],
                                         .symbol(symbol)] as Obj).eval(env: &env)
     default:
         return _raiseErrorDev(expr)
@@ -203,7 +205,9 @@ private func sLet(expr: SCons, env: inout Env) -> Obj {
             bindings = rest
     }
     extendEnv(env: &env, symbols: symbols, vals: vals)
-    return body.eval(env: &env)
+    let ret = body.eval(env: &env)
+    env.pop()
+    return ret
 }
 
 private func letrec(expr: SCons, env: inout Env) -> Obj {
@@ -226,11 +230,13 @@ private func letrec(expr: SCons, env: inout Env) -> Obj {
     let vals = valExprs.map { val -> Obj in val.eval(env: &env) }
     for case (.symbol(let s), let val) in zip(symbols, vals) {
         if case .closure(let _closure) = val {
-            _closure.env[_closure.env.count-1][s] = val
+            _closure.env[_closure.env.count-1, s] = val
         }
-        env[env.count-1][s] = val
+        env[env.count-1, s] = val
     }
-    return body.eval(env: &env)
+    let ret = body.eval(env: &env)
+    env.pop()
+    return ret
 }
 
 /// 論理式判定
@@ -354,6 +360,12 @@ private let builtinFunction: [String: SBuiltin] = [
         default:
             return _raiseErrorDev(obj)
         }
+    },
+    "'exit": .builtin { obj in
+        guard case .null = obj else {
+            return _raiseErrorDev(obj)
+        }
+        exit(0)
     }
 ]
 

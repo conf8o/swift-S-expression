@@ -26,7 +26,7 @@ struct Main {
 }
 
 func sExprDebug() {
-    var debug = Main(env: [[:]])
+    var debug = Main(env: Env())
 
     debug.debug(
         ["'+", 1, 2],
@@ -150,7 +150,7 @@ func lexicalAnalysisDebug() {
     let exprs = try! Obj.read(sExpr: s)
     print(exprs)
 
-    var debug = Main(env: [[:]])
+    var debug = Main(env: Env())
     debug.debug(exprs)
 }
 
