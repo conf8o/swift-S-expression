@@ -24,18 +24,6 @@ extension Env: CustomStringConvertible {
 
 public extension Env {
     /// 環境に変数と値を追加する。
-    func set(symbols: SCons, vals: SCons)  {
-        var _symbols = symbols
-        var _vals = vals
-        while case .cons(.symbol(let s), let restS) = _symbols,
-              case .cons(let val, let restV) = _vals {
-            self[count-1, s] = val
-            _symbols = restS
-            _vals = restV
-        }
-    }
-
-    /// 環境に変数と値を追加する。
     func extend(symbols: [SSymbol], vals: [Obj])  {
         var newEnv = [Obj.Symbol: Obj]()
         for case (.symbol(let s), let val) in zip(symbols, vals) {
