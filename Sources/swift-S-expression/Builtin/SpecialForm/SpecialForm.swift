@@ -85,7 +85,7 @@ private func sIf(expr: SCons, env: inout Env) -> Obj {
 private func cond(expr: SCons, env: inout Env) -> Obj {
     var rest = expr
     while case .cons(.cons(let p, .cons(let c, .null)), let xs) = rest {
-        if _logicalTrue(obj: p.eval(env: &env)) {
+        if case .symbol(let s) = p, s == "'else" || _logicalTrue(obj: p.eval(env: &env)) {
             return c.eval(env: &env)
         } else {
             rest = xs
