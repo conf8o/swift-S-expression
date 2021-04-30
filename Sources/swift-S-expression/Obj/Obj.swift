@@ -28,22 +28,6 @@ public typealias SNull = Obj       // .null
 public typealias SCons = Obj       // .null | .cons
 public typealias SVector = Obj     // .null | .vector
 
-extension SCons {
-    func car() -> Obj {
-        guard case .cons(let a, _) = self else {
-            return _raiseErrorDev(self) /* TODO エラーハンドリング */
-        }
-        return a
-    }
-
-    func cdr() -> Obj {
-        guard case .cons(_, let d) = self else {
-            return _raiseErrorDev(self) /* TODO エラーハンドリング */
-        }
-        return d
-    }
-}
-
 public extension Obj {
     /// S式の評価
     func eval(env: inout Env) -> Obj {

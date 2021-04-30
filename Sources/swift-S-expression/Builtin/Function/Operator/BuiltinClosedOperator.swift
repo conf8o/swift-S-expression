@@ -11,16 +11,9 @@ private class ClosedOperatorMaker<T> {
     func makeOperator(_ ope: @escaping (T, T) -> T) -> (SCons) -> Obj {
         func inner(args: SCons) -> Obj {
             guard case .cons(let x, let xs) = args else {
-                return _raiseErrorDev(args) // TODO エラーハンドリング
+                return _raiseErrorDev(args)
             }
-            var n = unwrap(x)
-            var rest = xs
-            while case .cons(let y, let ys) = rest {
-                let m = unwrap(y)
-                n = ope(n, m)
-                rest = ys
-            }
-
+            let n = xs.reduce(unwrap(x)) { ope($0, unwrap($1)) }
             return wrap(n)
         }
         return inner
@@ -47,7 +40,7 @@ private class DispatchClosedOperator {
             case .cons(.double, _):
                 return self.opeForDouble(args)
             default:
-                return _raiseErrorDev(args) // TODO エラーハンドリング
+                return _raiseErrorDev(args)
             }
         }
     }

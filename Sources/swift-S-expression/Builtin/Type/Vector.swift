@@ -1,13 +1,8 @@
 public class Vector {
-    var buffer: [Obj]
+    private var buffer: [Obj]
 
     init(_ list: SCons) {
-        self.buffer = []
-        var rest = list
-        while case .cons(let x, let xs) = rest {
-            buffer.append(x)
-            rest = xs
-        }
+        self.buffer = Array(list)
     }
     init(_ array: [Obj]) {
         self.buffer = array

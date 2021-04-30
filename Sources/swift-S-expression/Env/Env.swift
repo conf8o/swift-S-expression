@@ -24,24 +24,10 @@ extension Env: CustomStringConvertible {
 
 public extension Env {
     /// 環境に変数と値を追加する。
-    func extend(symbols: [SSymbol], vals: [Obj])  {
+    func extend<List: Sequence>(symbols: List, vals: List) where List.Element == Obj {
         var newEnv = [Obj.Symbol: Obj]()
         for case (.symbol(let s), let val) in zip(symbols, vals) {
             newEnv[s] = val
-        }
-        append(newEnv)
-    }
-
-    /// 環境に変数と値を追加する。
-    func extend(symbols: SCons, vals: SCons)  {
-        var newEnv = [Obj.Symbol: Obj]()
-        var _symbols = symbols
-        var _vals = vals
-        while case .cons(.symbol(let s), let restS) = _symbols,
-              case .cons(let val, let restV) = _vals {
-            newEnv[s] = val
-            _symbols = restS
-            _vals = restV
         }
         append(newEnv)
     }
@@ -60,7 +46,11 @@ public extension Env {
             return _raiseErrorDev(symbol) // TODO エラーハンドリング
         }
     }
-
+    
+    func getScopeIndex(symbol: Obj.Symbol) -> Int? {
+        return stack.lastIndex { $0[symbol] != nil }
+    }
+    
     subscript(i: Int, symbol: Obj.Symbol) -> Obj? {
         get {
             return stack[i][symbol]

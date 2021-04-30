@@ -14,11 +14,16 @@ private func define(expr: SCons, env: inout Env) -> SNull {
     switch expr {
     // (define (f args) body)
     case .cons(.cons(.symbol(let symbol), let args), .cons(let body, .null)):
-        env[env.count-1, symbol] = (["'letrec", [[.symbol(symbol), ["'lambda", args, body]]],
+        // (letrec ([symbol (lambda args body)])
+        //   symbol)
+        env[env.count-1, symbol] = (["'letrec", [[.symbol(symbol),
+                                                 ["'lambda", args, body]]],
                                         .symbol(symbol)] as Obj).eval(env: &env)
 
     // (define f val)
     case .cons(.symbol(let symbol), .cons(let val, .null)):
+        // (letrec ([symbol val])
+        //   symbol)
         env[env.count-1, symbol] = (["'letrec", [[.symbol(symbol), val]],
                                         .symbol(symbol)] as Obj).eval(env: &env)
     default:
@@ -28,18 +33,19 @@ private func define(expr: SCons, env: inout Env) -> SNull {
 }
 
 /// let式
+/// (let ([var1 val1]
+///    [var2 va2]
+///    ...)
+///   body)
 private func sLet(expr: SCons, env: inout Env) -> Obj {
-    var (bindings, body) = _take2(list: expr, default: (.null, .null))
+    let (bindings, body) = _take2(list: expr, default: (.null, .null))
 
     var symbols = [Obj]()
     var vals = [Obj]()
-    while case .cons(let binding, let rest) = bindings {
-        guard case .cons(let symbol, let _val) = binding else { return _raiseErrorDev(binding, rest) /* TODO エラーハンドリング */ }
-            // _val == (val . null)
-            let val = _val.car()
-            symbols.append(symbol)
-            vals.append(val.eval(env: &env))
-            bindings = rest
+    // (symbol val)
+    for case .cons(let symbol, .cons(let val, .null)) in bindings {
+        symbols.append(symbol)
+        vals.append(val.eval(env: &env))
     }
     env.extend(symbols: symbols, vals: vals)
     let ret = body.eval(env: &env)
@@ -48,19 +54,15 @@ private func sLet(expr: SCons, env: inout Env) -> Obj {
 }
 
 private func letrec(expr: SCons, env: inout Env) -> Obj {
-    var (bindings, body) = _take2(list: expr, default: (.null, .null))
+    let (bindings, body) = _take2(list: expr, default: (.null, .null))
 
     var symbols = [SSymbol]()
     var valExprs = [Obj]()
     var dummies = [SNull]()
-    while case .cons(let binding, let rest) = bindings {
-        guard case .cons(let symbol, let _val) = binding else { return _raiseErrorDev(binding, rest) /* TODO エラーハンドリング */ }
-            // _val == (val . null)
-            let valExpr = _val.car()
-            symbols.append(symbol)
-            valExprs.append(valExpr)
-            dummies.append(.null)
-            bindings = rest
+    for case .cons(let symbol, .cons(let valExpr, .null)) in bindings {
+        symbols.append(symbol)
+        valExprs.append(valExpr)
+        dummies.append(.null)
     }
     env.extend(symbols: symbols, vals: dummies)
     let vals = valExprs.map { val -> Obj in val.eval(env: &env) }
@@ -83,12 +85,12 @@ private func sIf(expr: SCons, env: inout Env) -> Obj {
 
 /// cond式
 private func cond(expr: SCons, env: inout Env) -> Obj {
-    var rest = expr
-    while case .cons(.cons(let p, .cons(let c, .null)), let xs) = rest {
+    // (p c)
+    for case .cons(let p, .cons(let c, .null)) in expr {
         if case .symbol(let s) = p, s == "'else" || _logicalTrue(obj: p.eval(env: &env)) {
             return c.eval(env: &env)
         } else {
-            rest = xs
+            break
         }
     }
     return .null

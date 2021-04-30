@@ -25,15 +25,7 @@ public let BUILTIN_FUNCTION: [String: SBuiltin] = [
     },
     
     // string
-    "'str": .builtin { obj in
-        var args = obj
-        var str = ""
-        while case .cons(let x, let xs) = args {
-            str.append(x.description)
-            args = xs
-        }
-        return .string(str)
-    },
+    "'str": .builtin { .string($0.map(\.description).joined(separator: "")) },
     "'string->list": .builtin { obj in 
         guard case .string(let s) = obj.car() else {
             return _raiseErrorDev(obj)
@@ -54,15 +46,8 @@ public let BUILTIN_FUNCTION: [String: SBuiltin] = [
         }
         return Obj.S(readLine()!.split(separator: " ").map { Obj.int(Int($0)!) })
     },
-    "'print": .builtin { obj in 
-        var args = obj
-        var str = ""
-        while case .cons(let x, let xs) = args {
-            str.append("\(x.description) ")
-            args = xs
-        }
-        str.removeLast()
-        print(str)
+    "'print": .builtin { obj in
+        print(obj.map(\.description).joined(separator: " "))
         return .null
     },
     
