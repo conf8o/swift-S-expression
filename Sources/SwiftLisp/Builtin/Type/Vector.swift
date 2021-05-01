@@ -24,3 +24,9 @@ extension Vector: CustomStringConvertible {
         return self.buffer.description
     }
 }
+
+extension Vector: Equatable {
+    public static func == (lhs: Vector, rhs: Vector) -> Bool {
+        return lhs.buffer == rhs.buffer
+    }
+}

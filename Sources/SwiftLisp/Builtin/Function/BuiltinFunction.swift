@@ -1,6 +1,9 @@
 import Foundation
 
 public let BUILTIN_FUNCTION: [String: SBuiltin] = [
+    // identity
+    "'identity": .builtin { obj in obj.car() },
+    
     // cons
     "'car": .builtin { obj in obj.car().car() },
     "'cdr": .builtin { obj in obj.car().cdr() },
@@ -77,11 +80,16 @@ public let BUILTIN_FUNCTION: [String: SBuiltin] = [
         }
     },
     
-    // System
+    // システム
     "'exit": .builtin { obj in
         guard case .null = obj else {
             return _raiseErrorDev(obj)
         }
         exit(0)
+    },
+    
+    // private
+    "'_recur": .builtin { obj in
+        return .cons("'recur", obj.cdr())
     }
 ]

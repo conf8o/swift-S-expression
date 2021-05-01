@@ -78,3 +78,28 @@ public func applySpecialForm(f: SSpecial, args: SCons, env: inout Env) -> Obj {
     guard case .special(let _f) = f else { return _raiseErrorDev(f, args) /* TODO エラーハンドリング */ }
     return _f(args, &env)
 }
+
+extension Obj: Equatable {
+    public static func == (lhs: Obj, rhs: Obj) -> Bool {
+        switch (lhs, rhs) {
+        case (.int(let x), .int(let y)):
+            return x == y
+        case (.double(let x), .double(let y)):
+            return x == y
+        case (.string(let s), .string(let t)):
+            return s == t
+        case (.bool(let p), .bool(let q)):
+            return p == q
+        case (.symbol(let s), .symbol(let t)):
+            return s == t
+        case (.cons, .cons):
+            return zip(lhs, rhs).allSatisfy(==)
+        case (.vector(let u), .vector(let v)):
+            return u == v
+        case (.null, .null):
+            return true
+        default:
+            return _raiseErrorDev(lhs, rhs)
+        }
+    }
+}
