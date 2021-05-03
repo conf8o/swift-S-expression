@@ -68,19 +68,19 @@ private func isTailRecur(name: Obj.Symbol, expr: SCons) -> Bool {
         case .symbol("'cond"):
             return isTailRecurInCond(name: name, expr: xs)
         default:
-            return !nameInArgs(name: name, in: xs)
+            return !isNameInList(name: name, in: xs)
         }
     } else {
         return true
     }
 }
 
-private func nameInArgs(name: Obj.Symbol, in expr: SCons) -> Bool {
-    for arg in expr {
+private func isNameInList(name: Obj.Symbol, in list: SCons) -> Bool {
+    for arg in list {
         switch arg {
         case .symbol(let s) where s == name:
             return true
-        case .cons(.symbol(let s), let xs) where s == name || nameInArgs(name: name, in: xs):
+        case .cons(.symbol(let s), let xs) where s == name || isNameInList(name: name, in: xs):
             return true
         default:
             break
@@ -95,7 +95,7 @@ private func isTailRecurInLet(name: Obj.Symbol, expr: SCons) -> Bool {
     
     // binding [_ (symbol args)]
     for case .cons(_, .cons(.cons(.symbol(let symbol), let args), .null)) in bindings {
-        if symbol == name || isTailRecur(name: name, expr: args) {
+        if symbol == name || isNameInList(name: name, in: args) {
             return false
         }
     }
@@ -109,7 +109,7 @@ private func isTailRecurInIf(name: Obj.Symbol, expr: SCons) -> Bool {
 
 private func isTailRecurInCond(name: Obj.Symbol, expr: SCons) -> Bool {
     for case .cons(let p, .cons(let c, .null)) in expr {
-        if isTailRecur(name: name, expr: p) || isTailRecur(name: name, expr: c) {
+        if isNameInList(name: name, in: p) || isTailRecur(name: name, expr: c) {
             return true
         }
     }
